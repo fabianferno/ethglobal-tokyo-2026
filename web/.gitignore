@@ -40,3 +40,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# sui move build (compiled.json IS committed; these are local build artifacts)
+/move/.sui
+/move/suica_vault/build/
+/move/suica_vault/build.log
+/move/suica_pool/build/
+/move/suica_pool/build.log
+
+# LLM-generated shells cache (published copies live on Walrus + ENS)
+/.genshells/

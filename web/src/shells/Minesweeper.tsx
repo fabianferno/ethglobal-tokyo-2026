@@ -3,6 +3,7 @@
 import gsap from "gsap";
 import { useEffect, useRef, useState } from "react";
 import { Progress } from "@/components/win99/Widgets";
+import { toGrid } from "@/lib/compose/adapt";
 import { balloon, message, propose, recordActivity } from "@/os/store";
 import type { ShellProps } from "./AppFrame";
 
@@ -44,7 +45,8 @@ function LED({ value }: { value: number | string }) {
  * Flag = stop-loss. Opening a revealed tile proposes a (paper) perp position through the Signing dialog.
  */
 export function MinesweeperShell({ app, bundle, preview }: ShellProps) {
-  const g = bundle.grid!;
+  // Native perp grid, or a minefield adapted from any function's numbers ("minesweeper but LP").
+  const g = toGrid(bundle);
   const cols = g.offsets.length;
   const [state, setState] = useState<CellState[][]>(() => g.cells.map((r) => r.map(() => "hidden")));
   const [sel, setSel] = useState<{ r: number; c: number } | null>(null);

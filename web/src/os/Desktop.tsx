@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { Icon } from "@/components/win99/Icon";
 import { ContextMenu, type MenuEntry } from "@/components/win99/Menu";
+import { DragGhost, dropTargetAt, endDrag, setDragOver, useDragOverId } from "./dnd";
 import {
   balloon,
   type DesktopItem,
@@ -37,12 +38,9 @@ export function Desktop() {
   const items = useOS((s) => s.items).filter((i) => i.parent === null);
   const [sel, setSel] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuEntry[] } | null>(null);
-  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const dropTarget = useDragOverId();
   const drag = useRef<{ id: string; dx: number; dy: number; sx: number; sy: number; moved: boolean } | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
-
-  const folderAt = (x: number, y: number, except: string) =>
-    items.find((f) => f.kind === "folder" && f.id !== except && x >= f.x && x <= f.x + 92 && y >= f.y && y <= f.y + 80);
 
   const bgMenu = (x: number, y: number): MenuEntry[] => [
     { label: "New App…", icon: "logo", onClick: () => toggleStart(true) },
@@ -74,6 +72,7 @@ export function Desktop() {
   return (
     <div
       className="desktop"
+      data-drop="desktop"
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) setSel(null);
       }}
@@ -90,6 +89,7 @@ export function Desktop() {
             className={`desk-icon ${sel === i.id ? "sel" : ""} ${dropTarget === i.id ? "drop-target" : ""}`}
             style={{ left: i.x, top: i.y }}
             title={v.sub}
+            data-drop={i.kind === "folder" ? `folder:${i.id}` : undefined}
             onPointerDown={(e) => {
               if (e.button !== 0) return;
               e.stopPropagation();
@@ -103,16 +103,20 @@ export function Desktop() {
               if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 5) return;
               d.moved = true;
               moveItem(i.id, e.clientX - d.dx, e.clientY - d.dy);
-              const f = i.kind === "app" ? folderAt(e.clientX, e.clientY, i.id) : undefined;
-              setDropTarget(f?.id ?? null);
+              // Only apps move into folders: a folder icon or an open folder window.
+              setDragOver(i.kind === "app" ? dropTargetAt(e.clientX, e.clientY, e.currentTarget) : null);
             }}
             onPointerUp={(e) => {
               const d = drag.current;
               drag.current = null;
-              setDropTarget(null);
+              endDrag();
               if (!d?.moved || i.kind !== "app") return;
-              const f = folderAt(e.clientX, e.clientY, i.id);
-              if (f) moveIntoFolder(i.id, f.id);
+              const t = dropTargetAt(e.clientX, e.clientY, e.currentTarget);
+              if (t?.kind === "folder") moveIntoFolder(i.id, t.id);
+            }}
+            onPointerCancel={() => {
+              drag.current = null;
+              endDrag();
             }}
             onDoubleClick={() => open(i)}
             onContextMenu={(e) => {
@@ -132,6 +136,7 @@ export function Desktop() {
         );
       })}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} />}
+      <DragGhost />
     </div>
   );
 }

@@ -3,7 +3,7 @@
  * Every prompt = SHELL (a familiar Win99 app) × FN (a crypto capability) × TARGET × VIBE.
  */
 
-export const SHELL_KEYS = ["excel", "minesweeper", "paint", "weather", "notepad", "explorer", "unspecified"] as const;
+export const SHELL_KEYS = ["excel", "minesweeper", "doom", "paint", "weather", "notepad", "hologram", "explorer", "unspecified"] as const;
 export type ShellKey = (typeof SHELL_KEYS)[number];
 export type ConcreteShell = Exclude<ShellKey, "unspecified">;
 
@@ -17,6 +17,7 @@ export const FN_KEYS = [
   "loan_guard",
   "club",
   "split",
+  "pay",
   "savings_circle",
   "checkout",
   "subscription",
@@ -28,6 +29,9 @@ export const FN_KEYS = [
   "roast",
   "market_mood",
   "journal",
+  "price_chart",
+  "gas",
+  "compare",
   "none",
 ] as const;
 export type FnKey = (typeof FN_KEYS)[number];

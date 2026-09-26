@@ -119,7 +119,11 @@ export const FUNCTIONS: Record<FnKey, FnDef> = {
           { label: "Size", value: `${amt(c, 50)} ${unit(c)}` },
           { label: "Venue", value: "Bluefin (paper)" },
         ],
-        actions: [],
+        actions: [
+          { id: "long", label: `Open ${maxLev}x long`, primary: c.params.side !== "short", tx: tx(c, { kind: "Open perp", summary: `Open ${maxLev}x LONG ${tok(c)} · ${amt(c, 50)} ${unit(c)} margin (paper)`, to: "Bluefin (paper)", amount: amt(c, 50), token: unit(c), calls: [`perp::open_position(side=long, lev=${maxLev}x)`], risk: 1.5 }) },
+          { id: "short", label: `Open ${maxLev}x short`, primary: c.params.side === "short", tx: tx(c, { kind: "Open perp", summary: `Open ${maxLev}x SHORT ${tok(c)} · ${amt(c, 50)} ${unit(c)} margin (paper)`, to: "Bluefin (paper)", amount: amt(c, 50), token: unit(c), calls: [`perp::open_position(side=short, lev=${maxLev}x)`], risk: 1.5 }) },
+          { id: "close", label: "Close position", tx: tx(c, { kind: "Close perp", summary: `Close ${tok(c)} position (paper)`, to: "Bluefin (paper)", amount: 0, token: "—", calls: ["perp::close_position"], risk: 0.4 }) },
+        ],
       };
     },
   },
@@ -292,6 +296,7 @@ export const FUNCTIONS: Record<FnKey, FnDef> = {
           ],
         },
         actions: [
+          { id: "join", label: "Join tab" },
           { id: "add", label: "Add bill" },
           { id: "settle", label: "Settle up", primary: true, tx: tx(c, { kind: "Settle group", summary: `Settle ${m.length} balances in one PTB (gas sponsored)`, to: m.slice(1).join(", "), amount: Math.abs(bal[0]) || 42, token: "USDC", calls: m.slice(1).map((x) => `0x2::pay::split_and_transfer → ${x}`), risk: 0.4 }) },
         ],
@@ -309,10 +314,10 @@ export const FUNCTIONS: Record<FnKey, FnDef> = {
       const m = members(c, 6);
       return {
         title: "Tanomoshi 頼母子",
-        subtitle: `${m.length} members · ${amt(c, 50)} USDC ${c.params.schedule ?? "monthly"} · pot ${amt(c, 50) * m.length} USDC`,
+        subtitle: `${m.length} members · ${amt(c, 50)} ${unit(c)} ${c.params.schedule ?? "monthly"} · pot ${amt(c, 50) * m.length} ${unit(c)}`,
         table: { columns: [{ key: "turn", label: "Turn", fmt: "num" }, { key: "who", label: "Receives pot", fmt: "text" }, { key: "status", label: "Status", fmt: "text" }], rows: m.map((who, i) => ({ turn: i + 1, who, status: i < 2 ? "Paid out" : i === 2 ? "This round" : "Waiting" })) },
         gauge: { value: 3 / m.length, label: "Round progress", caption: `Round 3 of ${m.length}` },
-        actions: [{ id: "pay", label: "Contribute", primary: true, tx: tx(c, { kind: "Contribute", summary: `Pay ${amt(c, 50)} USDC into this round's pot`, to: "circle::pot", amount: amt(c, 50), token: "USDC", calls: ["circle::contribute"], risk: 0.3 }) }],
+        actions: [{ id: "pay", label: "Contribute", primary: true, tx: tx(c, { kind: "Contribute", summary: `Pay ${amt(c, 50)} ${unit(c)} into this round's pot`, to: "circle::pot", amount: amt(c, 50), token: unit(c), calls: ["circle::contribute"], risk: 0.3 }) }],
       };
     },
   },
@@ -346,9 +351,9 @@ export const FUNCTIONS: Record<FnKey, FnDef> = {
     blurb: (c) => `${amt(c, 5)} USDC/month membership`,
     build: (c) => ({
       title: "Membership",
-      subtitle: `${amt(c, 5)} USDC / month`,
+      subtitle: `${amt(c, 5)} ${unit(c)} / month`,
       table: { columns: [{ key: "t", label: "Tier", fmt: "text" }, { key: "p", label: "Price", fmt: "usd" }, { key: "n", label: "Members", fmt: "num" }], rows: [{ t: "Fan", p: amt(c, 5), n: 128 }, { t: "Supporter", p: amt(c, 5) * 3, n: 31 }, { t: "Patron", p: amt(c, 5) * 10, n: 4 }] },
-      actions: [{ id: "sub", label: "Subscribe", primary: true, tx: tx(c, { kind: "Subscribe", summary: `Allow ${c.agent} to pull ${amt(c, 5)} USDC monthly`, to: c.agent, amount: amt(c, 5), token: "USDC", calls: ["subscription::subscribe(per_month≤" + amt(c, 5) + ")"], risk: 0.3 }) }],
+      actions: [{ id: "sub", label: "Subscribe", primary: true, tx: tx(c, { kind: "Subscribe", summary: `Allow ${c.agent} to pull ${amt(c, 5)} ${unit(c)} monthly`, to: c.agent, amount: amt(c, 5), token: unit(c), calls: ["subscription::subscribe(per_month≤" + amt(c, 5) + ")"], risk: 0.3 }) }],
     }),
   },
 
@@ -360,10 +365,10 @@ export const FUNCTIONS: Record<FnKey, FnDef> = {
     blurb: (c) => `Pocket money, ${amt(c, 20)} USDC ${c.params.schedule ?? "weekly"}, capped by Move`,
     build: (c) => ({
       title: "Family Wallet",
-      subtitle: `${amt(c, 20)} USDC ${c.params.schedule ?? "weekly"} · caps enforced on-chain`,
+      subtitle: `${amt(c, 20)} ${unit(c)} ${c.params.schedule ?? "weekly"} · caps enforced on-chain`,
       table: { columns: [{ key: "k", label: "Kid", fmt: "text" }, { key: "cap", label: "Weekly cap", fmt: "usd" }, { key: "spent", label: "Spent", fmt: "usd" }], rows: [{ k: "hana.kids.eth", cap: amt(c, 20), spent: 12.5 }, { k: "ren.kids.eth", cap: amt(c, 20), spent: 19.9 }] },
       gauge: { value: 0.81, label: "Family spend", caption: "32.40 of 40 USDC this week" },
-      actions: [{ id: "send", label: "Send allowance", primary: true, tx: tx(c, { kind: "Allowance", summary: `Send ${amt(c, 20)} USDC to each kid`, to: "hana.kids.eth, ren.kids.eth", amount: amt(c, 20) * 2, token: "USDC", calls: ["allowance::top_up ×2"], risk: 0.2 }) }],
+      actions: [{ id: "send", label: "Send allowance", primary: true, tx: tx(c, { kind: "Allowance", summary: `Send ${amt(c, 20)} ${unit(c)} to each kid`, to: "hana.kids.eth, ren.kids.eth", amount: amt(c, 20) * 2, token: unit(c), calls: ["allowance::top_up ×2"], risk: 0.2 }) }],
     }),
   },
 
@@ -397,7 +402,7 @@ export const FUNCTIONS: Record<FnKey, FnDef> = {
       title: "Escrow Desk",
       subtitle: "Funds locked until both sides are happy",
       table: { columns: [{ key: "d", label: "Deal", fmt: "text" }, { key: "a", label: "Amount", fmt: "usd" }, { key: "s", label: "Status", fmt: "text" }], rows: [{ d: "Logo design — aiko.eth", a: amt(c, 500), s: "Locked" }, { d: "Landing page — ren.eth", a: 1200, s: "Delivered" }] },
-      actions: [{ id: "lock", label: "Lock funds", primary: true, tx: tx(c, { kind: "Escrow", summary: `Lock ${amt(c, 500)} USDC for aiko.eth, release on approval or in 7 days`, to: "escrow::deal", amount: amt(c, 500), token: "USDC", calls: ["escrow::open(deadline=7d)"], risk: 0.5 }) }],
+      actions: [{ id: "lock", label: "Lock funds", primary: true, tx: tx(c, { kind: "Escrow", summary: `Lock ${amt(c, 500)} ${unit(c)} for aiko.eth, release on approval or in 7 days`, to: "escrow::deal", amount: amt(c, 500), token: unit(c), calls: ["escrow::open(deadline=7d)"], risk: 0.5 }) }],
     }),
   },
 
@@ -515,6 +520,141 @@ export const FUNCTIONS: Record<FnKey, FnDef> = {
         subtitle: `${txs.length} entries`,
         list: { items: txs.map((t) => ({ title: `${t.when}  ${t.action} ${t.amount} ${t.token}`, right: `PnL ${usd(t.pnl)}`, tone: t.pnl >= 0 ? "up" : "down" })) },
         table: { columns: [{ key: "when", label: "Date", fmt: "text" }, { key: "action", label: "Action", fmt: "text" }, { key: "token", label: "Token", fmt: "text" }, { key: "amount", label: "Amount", fmt: "num" }, { key: "pnl", label: "PnL", fmt: "usd" }], rows: txs },
+        actions: [],
+      };
+    },
+  },
+
+  price_chart: {
+    label: "Price Chart",
+    icon: "chart",
+    slug: "chart",
+    defaultShell: "excel",
+    blurb: (c) => `${tok(c, "ETH")} price over the last 30 days`,
+    build: (c) => {
+      // Instant mock so the critical path stays LLM-free; the live route swaps in real closes
+      // (same keys) for fn === "price_chart". Keys must match: series / gauge / table / list.
+      const sym = tok(c, "ETH");
+      const base = PRICES[sym]?.price ?? 100;
+      const r = rng(c.agent + sym);
+      const dec = base < 1 ? 6 : 2;
+      let p = base * (0.82 + r() * 0.12);
+      const closes = Array.from({ length: 30 }, () => {
+        p = Math.max(base * 0.01, p * (1 + (r() - 0.47) * 0.06));
+        return +p.toFixed(dec);
+      });
+      const first = closes[0];
+      const last = closes[closes.length - 1];
+      const move = (last / first - 1) * 100;
+      const rows = closes
+        .map((close, i) => ({ date: `T-${29 - i}d`, close, chg: +(((close - (closes[i - 1] ?? close)) / (closes[i - 1] ?? close)) * 100).toFixed(2) }))
+        .reverse();
+      return {
+        title: `${sym} Price Chart`,
+        subtitle: `${sym} · ${usd(last)} · ${pct(move)} 30d`,
+        series: { label: `${sym} daily close, last 30 days`, unit: "usd", points: closes },
+        gauge: { value: Math.max(0, Math.min(1, 0.5 + move / 100)), label: `30d ${pct(move)}`, caption: `${sym} ${usd(last)} · high ${usd(Math.max(...closes))} · low ${usd(Math.min(...closes))}` },
+        table: {
+          columns: [{ key: "date", label: "Date", fmt: "text" }, { key: "close", label: "Close", fmt: "usd" }, { key: "chg", label: "Day", fmt: "pct" }],
+          rows,
+        },
+        list: { items: rows.slice(0, 6).map((x) => ({ icon: "coin", title: `${x.date}  ${usd(Number(x.close))}`, right: pct(Number(x.chg)), tone: Number(x.chg) >= 0 ? "up" : "down" })) },
+        actions: [],
+      };
+    },
+  },
+
+  pay: {
+    label: "Send Money",
+    icon: "coin",
+    slug: "pay",
+    defaultShell: "explorer",
+    blurb: () => "Send money to an ENS name or Sui address",
+    build: (c) => {
+      // Money never defaults: recipient + amount come only from the prompt. No recipient/amount → no Send.
+      const to = c.params.ensNames[0] ?? c.params.addresses?.[0] ?? "";
+      const short = to ? (to.length > 20 ? `${to.slice(0, 8)}…${to.slice(-4)}` : to) : "—";
+      const token = unit(c);
+      const amount = c.params.amount?.value ?? 0;
+      const ready = !!to && amount > 0;
+      return {
+        title: "Send Money",
+        subtitle: ready ? `Send ${amount} ${token} to ${short}` : "Who should I pay, and how much?",
+        table: {
+          columns: [{ key: "k", label: "Field", fmt: "text" }, { key: "v", label: "Value", fmt: "text" }],
+          rows: [
+            { k: "To", v: to ? short : "add a recipient (ENS or 0x)" },
+            { k: "Amount", v: amount > 0 ? `${amount} ${token}` : "add an amount" },
+            { k: "Network", v: "Sui Testnet" },
+            { k: "Gas", v: "Sponsored — you pay nothing" },
+          ],
+        },
+        list: { items: [{ icon: "coin", title: ready ? short : "No recipient yet", subtitle: "recipient", right: amount > 0 ? `${amount} ${token}` : "" }] },
+        // Action id is EXACTLY "send" — AppFrame.runAction builds the real sponsored SuiPayIntent. Only
+        // offered when a recipient AND amount are present, so the button can never show invented money.
+        actions: ready ? [{ id: "send", label: `Send ${amount} ${token}`, primary: true, tx: tx(c, { kind: "Send payment", summary: `Send ${amount} ${token} to ${short} (gas sponsored)`, to, amount, token, calls: ["0x2::pay::split_and_transfer"], risk: 0.4 }) }] : [],
+      };
+    },
+  },
+
+  gas: {
+    label: "Gas Tracker",
+    icon: "clock",
+    slug: "gas",
+    defaultShell: "excel",
+    blurb: () => "Live Ethereum + Sui gas prices",
+    build: () => {
+      const r = rng("gas" + new Date().toISOString().slice(0, 13));
+      const pts = Array.from({ length: 24 }, () => +(0.3 + r() * 1.1).toFixed(2));
+      const now = pts[pts.length - 1];
+      return {
+        title: "Gas Tracker",
+        subtitle: `ETH base fee ~${now} gwei · Sui sponsored here`,
+        series: { label: "ETH base fee (gwei, last 24 blocks)", unit: "usd", points: pts },
+        gauge: { value: Math.max(0, Math.min(1, 1 - now / 60)), label: now < 15 ? "Cheap" : now < 30 ? "Normal" : "Pricey", caption: `${now} gwei now` },
+        table: {
+          columns: [{ key: "net", label: "Network", fmt: "text" }, { key: "what", label: "Action", fmt: "text" }, { key: "cost", label: "Cost", fmt: "usd" }],
+          rows: [
+            { net: "Ethereum", what: "Transfer", cost: +(now * 0.021 * 3.48).toFixed(2) },
+            { net: "Ethereum", what: "Swap", cost: +(now * 0.15 * 3.48).toFixed(2) },
+            { net: "Sui", what: "Transfer", cost: 0.001 },
+            { net: "Sui", what: "Sponsored (here)", cost: 0 },
+          ],
+        },
+        list: { items: [{ icon: "info", title: `ETH base fee ${now} gwei` }, { icon: "info", title: "Sui gas ≈ $0.001 · sponsored in Suica OS" }] },
+        actions: [],
+      };
+    },
+  },
+
+  compare: {
+    label: "Compare Wallets",
+    icon: "people",
+    slug: "vs",
+    defaultShell: "excel",
+    blurb: (c) => {
+      const all = [...c.params.ensNames, ...(c.params.addresses ?? [])];
+      return `${all[0] ?? c.owner} vs ${all[1] ?? "vitalik.eth"}`;
+    },
+    build: (c) => {
+      const all = [...c.params.ensNames, ...(c.params.addresses ?? [])];
+      const a = all[0] ?? c.owner;
+      const b = all[1] ?? "vitalik.eth";
+      const short = (x: string) => (x.length > 16 ? `${x.slice(0, 6)}…${x.slice(-4)}` : x);
+      const ha = portfolioOf(a), hb = portfolioOf(b);
+      const totA = ha.reduce((s, x) => s + x.value, 0), totB = hb.reduce((s, x) => s + x.value, 0);
+      const tokens = [...new Set([...ha, ...hb].map((x) => x.token))];
+      const val = (h: typeof ha, t: string) => +(h.find((x) => x.token === t)?.value ?? 0).toFixed(2);
+      return {
+        title: `${short(a)} vs ${short(b)}`,
+        subtitle: `${usd(totA)} vs ${usd(totB)}`,
+        table: {
+          columns: [{ key: "token", label: "Token", fmt: "text" }, { key: "a", label: short(a), fmt: "usd" }, { key: "b", label: short(b), fmt: "usd" }],
+          rows: tokens.map((t) => ({ token: t, a: val(ha, t), b: val(hb, t) })),
+          total: { token: "TOTAL", a: +totA.toFixed(2), b: +totB.toFixed(2) },
+        },
+        list: { items: [{ icon: "agent", title: short(a), right: usd(totA) }, { icon: "agent", title: short(b), right: usd(totB), tone: totB >= totA ? "up" : "down" }] },
+        settings: [{ label: "Wallet A", value: short(a) }, { label: "Wallet B", value: short(b) }],
         actions: [],
       };
     },

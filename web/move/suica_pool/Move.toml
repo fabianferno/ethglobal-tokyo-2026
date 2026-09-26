@@ -1,0 +1,11 @@
+[package]
+name = "suica_pool"
+version = "0.0.1"
+edition = "2024.beta"
+
+# Local framework clone (shared with suica_vault, created by pnpm sui:build) — no network at build time.
+[dependencies]
+Sui = { local = "../.sui/crates/sui-framework/packages/sui-framework" }
+
+[addresses]
+suica_pool = "0x0"

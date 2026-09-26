@@ -3,6 +3,7 @@
 import gsap from "gsap";
 import { useLayoutEffect, useRef } from "react";
 import { Icon } from "@/components/win99/Icon";
+import { toGauge } from "@/lib/compose/adapt";
 import type { ShellProps } from "./AppFrame";
 
 type Sky = "sun" | "partly" | "rain" | "storm";
@@ -38,7 +39,8 @@ function SkyIcon({ kind, size }: { kind: Sky; size: number }) {
 
 /** Weather shell: Gauge shape → market mood as a forecast. */
 export function WeatherShell({ bundle, preview }: ShellProps) {
-  const g = bundle.gauge!;
+  // Native mood gauge, or one derived from any function's data ("weather but my portfolio").
+  const g = toGauge(bundle);
   const m = mood(g.value);
   const big = useRef<HTMLDivElement>(null);
 

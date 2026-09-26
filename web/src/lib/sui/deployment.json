@@ -1,0 +1,9 @@
+{
+  "network": "testnet",
+  "packageId": "0xc0bcd0726fff2d2d480e44d24aabe334a2db30c5795236179a44fec6b0f34587",
+  "upgradeCap": "0x57b44cb1b0191207dc3caa6a2b91599a2d9ba5be493ea03d44274307ca84a19a",
+  "publishedAt": "2026-09-26T12:52:00.420Z",
+  "demoVault": "0x8a5fc0b25bd0cc5d123dc460f0455f49a52ae13ffaad31aa94c02e588bd4b078",
+  "demoCap": "0x4384a2523816f2312fbc9cb08d102f8e2b0773c71ab0ed71c6b35dffcd6df507",
+  "demoPerTxCap": "20000000"
+}

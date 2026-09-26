@@ -89,10 +89,49 @@ export function PaintShell({ bundle, preview }: ShellProps) {
                   <text textAnchor="middle" y="6" fontFamily="Impact, 'Arial Black', sans-serif" fontSize="34" fill="#df2e28" letterSpacing="2">{scene.verdict}</text>
                 </g>
               </>
+            ) : bundle.series ? (
+              (() => {
+                const pts = bundle.series.points;
+                const min = Math.min(...pts), max = Math.max(...pts), span = max - min || 1;
+                const X = (i: number) => 56 + (i / Math.max(1, pts.length - 1)) * 544;
+                const Y = (v: number) => 372 - ((v - min) / span) * 300;
+                const d = pts.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+                const fmtV = (v: number) => (bundle.series!.unit === "pct" ? `${v.toFixed(1)}%` : v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : v >= 1 ? `$${v.toFixed(2)}` : `$${v.toPrecision(3)}`);
+                return (
+                  <>
+                    <rect width="640" height="420" fill="#fffdf2" />
+                    <text className="p-head" x="320" y="40" textAnchor="middle" fontFamily="Impact, 'Arial Black', sans-serif" fontSize="30" fill="#fff" stroke="#000" strokeWidth="2" paintOrder="stroke">{bundle.title}</text>
+                    <line x1="56" y1="60" x2="56" y2="372" stroke="#000" strokeWidth="2" />
+                    <line x1="56" y1="372" x2="608" y2="372" stroke="#000" strokeWidth="2" />
+                    <text x="52" y="66" textAnchor="end" fontFamily="'Comic Sans MS', cursive" fontSize="13">{fmtV(max)}</text>
+                    <text x="52" y="372" textAnchor="end" fontFamily="'Comic Sans MS', cursive" fontSize="13">{fmtV(min)}</text>
+                    <path className="p-line" d={d} fill="none" stroke={color} strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
+                    <circle cx={X(pts.length - 1)} cy={Y(pts[pts.length - 1])} r="6" fill={color} stroke="#000" strokeWidth="1.5" />
+                    <text x={X(pts.length - 1)} y={Y(pts[pts.length - 1]) - 12} textAnchor="middle" fontFamily="Impact" fontSize="18" fill="#000">{fmtV(pts[pts.length - 1])}</text>
+                  </>
+                );
+              })()
             ) : bundle.table ? (
               <foreignObject x="20" y="20" width="600" height="380">
                 <BarChart values={bundle.table.rows.map((r) => Number(Object.values(r).find((v) => typeof v === "number") ?? 0))} labels={bundle.table.rows.map((r) => String(Object.values(r)[0]))} height={360} />
               </foreignObject>
+            ) : bundle.list ? (
+              <>
+                <rect width="640" height="420" fill="#fffdf2" />
+                <text className="p-head" x="320" y="42" textAnchor="middle" fontFamily="Impact, 'Arial Black', sans-serif" fontSize="30" fill="#fff" stroke="#000" strokeWidth="2" paintOrder="stroke">{bundle.title}</text>
+                {bundle.list.items.slice(0, 6).map((it, i) => {
+                  const x = 34 + (i % 2) * 300, y = 74 + Math.floor(i / 2) * 108;
+                  const tone = it.tone === "up" ? "#c9f5cf" : it.tone === "down" ? "#f7c9c9" : it.tone === "warn" ? "#fdeeb3" : "#fff7c0";
+                  return (
+                    <g key={i} className="p-line" transform={`translate(${x} ${y}) rotate(${i % 2 ? 2 : -2})`}>
+                      <rect width="276" height="92" fill={tone} stroke="#000" strokeWidth="2" />
+                      <text x="12" y="26" fontFamily="'Comic Sans MS', 'Comic Neue', cursive" fontSize="15" fontWeight="700">{(it.title ?? "").slice(0, 26)}</text>
+                      {it.subtitle && <text x="12" y="48" fontFamily="'Comic Sans MS', 'Comic Neue', cursive" fontSize="12" fill="#555">{it.subtitle.slice(0, 30)}</text>}
+                      {it.right && <text x="264" y="82" textAnchor="end" fontFamily="Impact, sans-serif" fontSize="18" fill="#c21d17">{it.right}</text>}
+                    </g>
+                  );
+                })}
+              </>
             ) : null}
             {strokes.map((s, i) => <path key={i} d={s.d} fill="none" stroke={s.c} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />)}
           </svg>

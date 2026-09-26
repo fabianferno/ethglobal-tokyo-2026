@@ -8,7 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "ens:setup": "tsx scripts/ens-setup.ts",
-    "ens:seed": "tsx scripts/ens-seed.ts"
+    "ens:seed": "tsx scripts/ens-seed.ts",
+    "sui:check": "tsx scripts/sui-check.ts",
+    "sui:faucet": "tsx scripts/sui-faucet.ts",
+    "sui:build": "bash scripts/sui-build.sh",
+    "sui:publish": "tsx scripts/sui-publish.ts",
+    "sui:smoke": "tsx scripts/sui-smoke.ts"
   },
   "dependencies": {
     "@mysten/enoki": "^1.2.28",

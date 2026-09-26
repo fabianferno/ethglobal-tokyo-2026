@@ -5,9 +5,12 @@ import type { IconName } from "@/components/win99/Icon";
 import { fakeDigest } from "@/lib/chain/mock";
 import { type AppManifest, newId } from "@/lib/compose/compose";
 import { PUBLISHED } from "@/lib/compose/registry";
+import { deviceAddress, signAction } from "@/lib/ens/device";
 import { fromStored, type StoredManifest, toStored } from "@/lib/ens/manifest";
-import { labelOf, ROOT, uniqueName } from "@/lib/ens/names";
+import { cleanLabel, labelOf, ROOT, uniqueName } from "@/lib/ens/names";
 import type { TxProposal } from "@/lib/compose/shapes";
+import { clearSuiSession } from "@/lib/sui/session";
+import { playSound } from "./sounds";
 
 export type SystemKey = "mycomputer" | "taskmgr" | "network" | "recycle" | "kit";
 
@@ -56,6 +59,10 @@ export type Activity = { t: number; agent: string; kind: string; amount: number;
 
 export type OSState = {
   user: string | null;
+  /** The logged-in user's Sui address (zkLogin). Null in guest/paper mode. */
+  suiAddress: string | null;
+  /** This browser's username (<name>.users.suica.eth → its device key). Claimed in the background at log-on. */
+  username: string | null;
   items: DesktopItem[];
   windows: Win[];
   z: number;
@@ -73,7 +80,7 @@ export type OSState = {
 
 const KEY = "suicaos:v1";
 
-const initial: OSState = { user: null, items: [], windows: [], z: 10, startOpen: false, bsod: null, balloon: null, activity: [], trash: [], hydrated: false, index: [], indexFolders: [], indexSource: "loading" };
+const initial: OSState = { user: null, suiAddress: null, username: null, items: [], windows: [], z: 10, startOpen: false, bsod: null, balloon: null, activity: [], trash: [], hydrated: false, index: [], indexFolders: [], indexSource: "loading" };
 
 let state: OSState = initial;
 const listeners = new Set<() => void>();
@@ -86,7 +93,7 @@ function set(fn: (s: OSState) => Partial<OSState>) {
 
 function persist() {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ user: state.user, items: state.items, activity: state.activity.slice(0, 50), trash: state.trash }));
+    localStorage.setItem(KEY, JSON.stringify({ user: state.user, suiAddress: state.suiAddress, username: state.username, items: state.items, activity: state.activity.slice(0, 50), trash: state.trash }));
   } catch {
     /* private mode — the OS still works, it just forgets on reload */
   }
@@ -140,16 +147,30 @@ export function isTaken(ens: string, exceptItemId?: string) {
 
 /* ── ENS (Sepolia) ───────────────────────────────────────── */
 
-type IndexEntry = { ens: string; kind: "app" | "folder"; published: boolean; manifest: StoredManifest | null };
+type IndexEntry = { ens: string; kind: "app" | "folder"; published: boolean; manifest: StoredManifest | null; aliasOf?: string };
+
+/** Old name → current name, for apps that moved (their old name is an ENS record alias of the new one). */
+let aliases: Record<string, string> = {};
+/** Follow the alias chain to the current name: an app moved desktop → a → b leaves two hops. */
+export const canonicalName = (ens: string) => {
+  const seen = new Set<string>();
+  while (aliases[ens] && !seen.has(ens)) {
+    seen.add(ens);
+    ens = aliases[ens];
+  }
+  return ens;
+};
 
 export async function refreshIndex() {
   try {
     const res = await fetch("/api/ens/index");
     const j = (await res.json()) as { entries: IndexEntry[] };
     if (!res.ok) throw new Error("index unavailable");
+    aliases = Object.fromEntries(j.entries.flatMap((e) => (e.aliasOf ? [[e.ens, e.aliasOf]] : [])));
+    const live = j.entries.filter((e) => !e.aliasOf);
     set(() => ({
-      index: j.entries.flatMap((e) => (e.kind === "app" && e.manifest ? [fromStored(e.ens, e.manifest, e.published)] : [])),
-      indexFolders: j.entries.filter((e) => e.kind === "folder").map((e) => e.ens),
+      index: live.flatMap((e) => (e.kind === "app" && e.manifest ? [fromStored(e.ens, e.manifest, e.published)] : [])),
+      indexFolders: live.filter((e) => e.kind === "folder").map((e) => e.ens),
       indexSource: "chain",
     }));
   } catch {
@@ -162,15 +183,22 @@ function patchItem(id: string, patch: Partial<Extract<DesktopItem, { kind: "app"
   set((s) => ({ items: s.items.map((i) => (i.id === id ? ({ ...i, ...patch } as DesktopItem) : i)) }));
 }
 
-/** Mint an item's name on ENS in the background. The UI never waits for this. */
-export async function mintItem(id: string) {
+/**
+ * Mint an item's name on ENS in the background. The UI never waits for this. The request is signed with
+ * this browser's device key, which becomes the name's resolver admin (and a folder's manager).
+ * `aliasFrom`: the app's previous on-chain name, which becomes a record alias of the new one.
+ */
+export async function mintItem(id: string, opts: { aliasFrom?: string } = {}) {
   const it = getOS().items.find((i) => i.id === id);
   if (!it || it.kind === "system") return;
   patchItem(id, { chain: { status: "minting" } });
 
-  let body: unknown;
-  if (it.kind === "folder") body = { kind: "folder", label: labelOf(it.ens) };
-  else {
+  let body: Record<string, unknown>;
+  let target: string;
+  if (it.kind === "folder") {
+    body = { kind: "folder", label: labelOf(it.ens) };
+    target = `${labelOf(it.ens)}.${ROOT}`;
+  } else {
     // An app inside a folder needs the folder's registry to exist first.
     for (let t = 0; t < 60 && it.parent; t++) {
       const f = getOS().items.find((x) => x.id === it.parent);
@@ -181,13 +209,21 @@ export async function mintItem(id: string) {
     if (!cur || cur.kind !== "app") return;
     const parentItem = cur.parent ? getOS().items.find((x) => x.id === cur.parent) : undefined;
     const parent = parentItem && parentItem.kind === "folder" ? parentItem.ens : ROOT;
-    body = { kind: "app", label: labelOf(cur.app.ens), parent, manifest: toStored(cur.app), published: cur.app.published };
+    body = { kind: "app", label: labelOf(cur.app.ens), parent, manifest: toStored(cur.app), published: cur.app.published, aliasFrom: opts.aliasFrom };
+    target = `${labelOf(cur.app.ens)}.${parent}`;
   }
 
   try {
+    body.auth = await signAction("mint", target);
     const res = await fetch("/api/ens/mint", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const j = await res.json();
     if (res.status === 503) return patchItem(id, { chain: { status: "local", error: j.error } });
+    if (res.status === 403) {
+      patchItem(id, { chain: { status: "failed", error: j.error } });
+      const me = getOS().username ? labelOf(getOS().username!) : deviceAddress();
+      message("Access denied", "error", `You can't create apps in ${target.slice(target.indexOf(".") + 1)}.`, `${j.error}\n\nAsk a manager of the folder to share it with you:\n${me}`);
+      return "denied";
+    }
     if (!res.ok) throw new Error(j.error ?? res.statusText);
     const txs = (j.txs as { url: string }[]).map((t) => t.url);
     const now = getOS().items.find((i) => i.id === id);
@@ -206,7 +242,7 @@ export async function mintItem(id: string) {
       if (j.ens !== now.app.ens) updateApp(id, { ens: j.ens });
       patchItem(id, { chain: { status: "onchain", txs } });
     }
-    balloon("Minted on ENS", `${j.ens}\n${txs[0]}`);
+    balloon("Minted on ENS", j.aliased ? `${j.ens}\n${j.aliased} now aliases it (same record)` : `${j.ens}\n${txs[0]}`);
     void refreshIndex();
   } catch (e) {
     patchItem(id, { chain: { status: "failed", error: (e as Error).message } });
@@ -234,18 +270,54 @@ export async function setPublished(id: string, published: boolean) {
   }
 }
 
-/** A user is a wallet, not an ENS name; this handle is just a display name until wallet login lands. */
-export function login(user: string) {
-  const handle = user.trim().toLowerCase().replace(/\.eth$/, "").replace(/[^a-z0-9-]/g, "") || "guest";
+/**
+ * A user is a wallet, not an ENS name. In guest mode the handle is a display name (paper mode);
+ * with Google/zkLogin, `opts.suiAddress` is the real wallet and the handle is derived from it.
+ */
+export function login(user: string, opts: { suiAddress?: string } = {}) {
+  const handle = opts.suiAddress
+    ? `sui-${opts.suiAddress.replace(/^0x/, "").slice(0, 6)}`
+    : user.trim().toLowerCase().replace(/\.eth$/, "").replace(/[^a-z0-9-]/g, "") || "guest";
   set((s) => {
-    if (s.items.length && s.user === handle) return { user: handle };
+    if (s.items.length && s.user === handle) return { user: handle, suiAddress: opts.suiAddress ?? s.suiAddress };
     const sys: DesktopItem[] = (["mycomputer", "network", "taskmgr", "recycle", "kit"] as SystemKey[]).map((k, i) => ({ id: `sys_${k}`, kind: "system", system: k, parent: null, x: 8, y: 8 + i * GRID_Y }));
-    return { user: handle, items: sys, windows: [], activity: [], trash: [] };
+    return { user: handle, suiAddress: opts.suiAddress ?? null, items: sys, windows: [], activity: [], trash: [] };
   });
+  playSound("startup");
 }
 
 export function logout() {
-  set(() => ({ user: null, windows: [], startOpen: false }));
+  clearSuiSession();
+  set(() => ({ user: null, suiAddress: null, windows: [], startOpen: false }));
+}
+
+let claiming: Promise<void> | null = null;
+
+/**
+ * Give this browser a username: <handle>.users.suica.eth pointing at its device key, so folders can be
+ * shared with "alice" instead of a 0x key. Background, first come first served, idempotent per key.
+ */
+export function claimUsername() {
+  const s = getOS();
+  if (s.username || !s.user) return;
+  claiming ??= (async () => {
+    const label = cleanLabel(s.user!);
+    try {
+      const res = await fetch("/api/ens/username", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ label, auth: await signAction("claim", `${label}.users.${ROOT}`) }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? res.statusText);
+      set(() => ({ username: j.ens }));
+      if (j.txs?.length) balloon("Username claimed", `${j.ens}\nFolders can now be shared with "${labelOf(j.ens)}".`);
+    } catch (e) {
+      console.warn("[username]", (e as Error).message);
+    } finally {
+      claiming = null;
+    }
+  })();
 }
 
 /** Create a new app (minted on ENS in the background), or pin an existing on-chain app as-is. */
@@ -278,11 +350,18 @@ export function moveItem(id: string, x: number, y: number) {
   set((s) => ({ items: s.items.map((i) => (i.id === id ? { ...i, x: Math.max(0, x), y: Math.max(0, y) } : i)) }));
 }
 
-/** Dropping an app on a folder re-roots its ENS name under the folder: grouptab.suica.eth → grouptab.team.suica.eth */
-export function moveIntoFolder(itemId: string, folderId: string | null) {
+/**
+ * Dropping an app on a folder re-roots its ENS name under the folder: grouptab.suica.eth → grouptab.team.suica.eth.
+ * Works from anywhere to anywhere (desktop → folder, folder → folder, folder → desktop) in one move.
+ * `at` places it at a drop point on the desktop instead of the next free slot.
+ */
+export function moveIntoFolder(itemId: string, folderId: string | null, at?: { x: number; y: number }) {
+  const before = getOS().items.find((i) => i.id === itemId);
+  if (!before || before.kind !== "app" || before.parent === folderId) return;
+  const aliasFrom = before.chain?.status === "onchain" ? before.app.ens : undefined;
   set((s) => {
     const folder = folderId ? s.items.find((i) => i.id === folderId && i.kind === "folder") : null;
-    const slot = freeSlot(s.items, folderId);
+    const slot = at && folderId === null ? { x: Math.max(0, at.x), y: Math.max(0, at.y) } : freeSlot(s.items, folderId);
     return {
       items: s.items.map((i) => {
         if (i.id !== itemId || i.kind !== "app") return i;
@@ -294,8 +373,29 @@ export function moveIntoFolder(itemId: string, folderId: string | null) {
   });
   const folder = folderId ? getOS().items.find((i) => i.id === folderId) : null;
   if (folder && folder.kind === "folder") balloon("Moved to workspace", `Now inherits ${folder.ens}'s spend policy.`);
-  // ENS names can't be renamed: moving mints the app's new name inside the folder.
-  void mintItem(itemId);
+  else balloon("Moved to Desktop", `Now lives at the top level of ${ROOT}.`);
+  // ENS names can't be renamed: moving mints the app's new name inside the folder, and the old
+  // name is re-pointed at the new record (resolver-level alias) so existing share links keep working.
+  void mintItem(itemId, { aliasFrom }).then((r) => {
+    // The folder refused us on-chain: put the app back exactly as it was.
+    if (r !== "denied") return;
+    set((s) => {
+      const others = s.items.filter((i) => i.id !== itemId);
+      return { items: s.items.map((i) => (i.id === itemId ? { ...before, ...freeSlot(others, before.parent) } : i)) };
+    });
+  });
+}
+
+/** Put an on-chain folder (e.g. one shared with you) on the desktop, with its published apps inside. */
+export function pinFolder(ens: string) {
+  const s = getOS();
+  const existing = s.items.find((i) => i.kind === "folder" && i.ens === ens);
+  if (existing) return existing.id;
+  const folder: DesktopItem = { id: newId("fld"), kind: "folder", name: labelOf(ens), ens, parent: null, ...freeSlot(s.items, null), chain: { status: "onchain" } };
+  const apps = s.index.filter((a) => a.ens.endsWith(`.${ens}`));
+  const kids: DesktopItem[] = apps.map((app, i) => ({ id: newId("itm"), kind: "app", app, parent: folder.id, x: 8 + (i % 6) * GRID_X, y: 8 + Math.floor(i / 6) * GRID_Y, chain: { status: "onchain" } }));
+  set((st) => ({ items: [...st.items, folder, ...kids] }));
+  return folder.id;
 }
 
 export function trashItem(id: string) {
@@ -389,9 +489,11 @@ export function toggleStart(open?: boolean) {
 
 /* ── Signing: the one fixed, never-generated surface that can move money ── */
 
-const pending = new Map<string, (ok: boolean) => void>();
+/** The Signing dialog resolves with a real Sui digest when it executed one, else just ok/false. */
+export type SignResult = { ok: boolean; digest?: string; error?: string };
+const pending = new Map<string, (r: SignResult) => void>();
 
-export function requestSignature(tx: TxProposal): Promise<boolean> {
+export function requestSignature(tx: TxProposal): Promise<SignResult> {
   const reqId = newId("sig");
   return new Promise((resolve) => {
     pending.set(reqId, resolve);
@@ -399,28 +501,48 @@ export function requestSignature(tx: TxProposal): Promise<boolean> {
   });
 }
 
-export function resolveSign(reqId: string, ok: boolean) {
+export function resolveSign(reqId: string, ok: boolean, extra?: { digest?: string; error?: string }) {
   const fn = pending.get(reqId);
   if (!fn) return;
   pending.delete(reqId);
-  fn(ok);
+  fn({ ok, ...extra });
 }
 
 export function recordActivity(a: Omit<Activity, "t" | "digest"> & { digest?: string }) {
   set((s) => ({ activity: [{ ...a, t: Date.now(), digest: a.digest ?? (a.status === "ok" ? fakeDigest() : undefined) }, ...s.activity].slice(0, 100) }));
 }
 
-/** Propose → sign → record. Returns the digest on success. */
+/**
+ * Propose → sign → record. Returns the digest on success. Real Sui execution happens inside the
+ * Signing dialog (the one fixed money-moving surface); when it does, `r.digest` is a real on-chain
+ * digest. Otherwise this is paper mode and we mint a plausible-looking fake digest.
+ */
 export async function propose(tx: TxProposal): Promise<string | null> {
-  const ok = await requestSignature(tx);
-  if (!ok) {
+  const r = await requestSignature(tx);
+  if (!r.ok) {
     recordActivity({ agent: tx.agent, kind: tx.kind, amount: tx.amount, token: tx.token, status: "denied" });
+    if (r.error) balloon("Transaction failed", r.error);
     return null;
   }
-  const digest = fakeDigest();
+  const real = !!r.digest;
+  const digest = r.digest ?? fakeDigest();
   recordActivity({ agent: tx.agent, kind: tx.kind, amount: tx.amount, token: tx.token, status: "ok", digest });
-  balloon("Transaction sent", `${tx.kind} · ${tx.amount ? `${tx.amount} ${tx.token}` : ""}\n${digest.slice(0, 10)}…`);
+  balloon(real ? "Transaction sent" : "Transaction sent (paper)", `${tx.kind}${tx.amount ? ` · ${tx.amount} ${tx.token}` : ""}\n${digest.slice(0, 12)}…`);
   return digest;
+}
+
+/** "Charge your Suica": ask the server to top up the logged-in user with a little testnet USDC. */
+export async function chargeSuica(): Promise<void> {
+  const addr = getOS().suiAddress;
+  if (!addr) return balloon("Not signed in", "Log on with Google to get a Sui wallet first.");
+  try {
+    const res = await fetch("/api/sui/charge", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: addr }) });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error ?? "charge failed");
+    balloon("Suica charged", `+${j.amount} ${j.token}${j.digest ? `\n${String(j.digest).slice(0, 12)}…` : ""}`);
+  } catch (e) {
+    balloon("Charge failed", (e as Error).message);
+  }
 }
 
 /* ── Notifications & crashes ─────────────────────────────── */
@@ -429,6 +551,7 @@ let balloonTimer: ReturnType<typeof setTimeout> | undefined;
 export function balloon(title: string, text: string) {
   clearTimeout(balloonTimer);
   set(() => ({ balloon: { title, text } }));
+  playSound("notify");
   balloonTimer = setTimeout(() => set(() => ({ balloon: null })), 4500);
 }
 

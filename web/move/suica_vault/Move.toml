@@ -1,0 +1,12 @@
+[package]
+name = "suica_vault"
+version = "0.0.1"
+edition = "2024.beta"
+
+# Points at a LOCAL sparse clone of the Sui framework (move/.sui, created by `pnpm sui:build`), so
+# the build needs no network — the emulated Docker container can't reliably git-fetch github.
+[dependencies]
+Sui = { local = "../.sui/crates/sui-framework/packages/sui-framework" }
+
+[addresses]
+suica_vault = "0x0"

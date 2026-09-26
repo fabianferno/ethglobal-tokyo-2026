@@ -61,9 +61,11 @@ export const registryAbi = parseAbi([
   "function revokeRootRoles(uint256 roleBitmap, address account) returns (bool)",
   "function hasRootRoles(uint256 roleBitmap, address account) view returns (bool)",
   "function getSubregistry(string label) view returns (address)",
+  "function getResolver(string label) view returns (address)",
   "function findOwner(string label) view returns (address)",
   "function getState(uint256 anyId) view returns ((uint8 status, uint64 expiry, address latestOwner, uint256 tokenId, uint256 resource))",
   "event LabelRegistered(uint256 indexed tokenId, bytes32 indexed labelHash, string label, address owner, uint64 expiry, address indexed sender)",
+  "event EACRolesChanged(uint256 indexed resource, address indexed account, uint256 oldRoleBitmap, uint256 newRoleBitmap)",
 ]);
 
 export const resolverAbi = parseAbi([
@@ -71,6 +73,10 @@ export const resolverAbi = parseAbi([
   "function setText(bytes name, string key, string value)",
   "function setAddress(bytes name, uint256 coinType, bytes addressBytes)",
   "function multicall(bytes[] calls) returns (bytes[])",
+  "function grantSetterRoles(bytes setter, address account) returns (bool)",
+  "function revokeRootRoles(uint256 roleBitmap, address account) returns (bool)",
+  "function hasRootRoles(uint256 roleBitmap, address account) view returns (bool)",
+  "function linkToNode(bytes sourceName, bytes32 targetNode)",
 ]);
 
 /* ── Roles (EAC). Admin of a role = role << 128. ── */
@@ -87,6 +93,20 @@ export const admin = (r: bigint) => r << 128n;
 export const OWNER_ROLES =
   ROLE.SET_SUBREGISTRY | admin(ROLE.SET_SUBREGISTRY) | ROLE.SET_RESOLVER | admin(ROLE.SET_RESOLVER) | ROLE.RENEW | admin(ROLE.RENEW) | ROLE.CAN_TRANSFER_ADMIN;
 
+/** Root roles on a folder's registry. Managers can mint into the folder and share it; members can only mint. */
+export const FOLDER_MEMBER_ROLES = ROLE.REGISTRAR | ROLE.RENEW;
+export const FOLDER_MANAGER_ROLES = FOLDER_MEMBER_ROLES | admin(ROLE.REGISTRAR) | admin(ROLE.RENEW);
+
+/** PermissionedResolver roles (PermissionedResolverLib). */
+export const RROLE = {
+  SET_ADDRESS: 1n << 0n,
+  SET_TEXT: 1n << 4n,
+  LINK: 1n << 28n,
+} as const;
+
+/** Sui coin type (SLIP-44 784) — where an app's Sui vault id will live. */
+export const SUI_COIN_TYPE = 784n;
+
 /* ── Encoding helpers ── */
 /** PermissionedResolver setters take the DNS-encoded name, not a namehash. */
 export const dnsName = (name: string): Hex => toHex(packetToBytes(name));
@@ -102,6 +122,9 @@ export const resolverSalt = (owner: Address, v = 0n) =>
   BigInt(keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "address" }, { type: "uint256" }], [keccak256(stringToHex("OwnedResolver")), owner, v])));
 export const registrySalt = (name: string, v = 0n) =>
   BigInt(keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "bytes32" }, { type: "uint256" }], [keccak256(stringToHex("UserRegistry")), namehash(name), v])));
+/** A name's own resolver. `v` is random so a retried mint never collides with a half-finished one. */
+export const nameResolverSalt = (name: string, v: bigint) =>
+  BigInt(keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "bytes32" }, { type: "uint256" }], [keccak256(stringToHex("NameResolver")), namehash(name), v])));
 
 /** Where everything for a given server wallet lives. Pure function of the wallet + name. */
 export function layout(server: Address, root: string) {
@@ -119,4 +142,8 @@ export const TEXT = {
   kind: "class",
   description: "description",
   url: "url",
+  /** JSON array of member Sui addresses who joined this app (e.g. a Group Tab). */
+  members: "suica.members",
+  /** The name this record was minted for. A name whose record says otherwise is an alias. */
+  canonical: "suica.ens",
 } as const;

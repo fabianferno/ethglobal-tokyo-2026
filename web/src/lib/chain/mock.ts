@@ -23,6 +23,10 @@ export const PRICES: Record<string, { price: number; change24h: number }> = {
   WAL: { price: 0.47, change24h: 2.1 },
   CETUS: { price: 0.121, change24h: -9.6 },
   ETH: { price: 3480, change24h: 1.4 },
+  BTC: { price: 84000, change24h: 2.3 },
+  SOL: { price: 138.5, change24h: -3.1 },
+  PEPE: { price: 0.0000095, change24h: 6.7 },
+  DOGE: { price: 0.16, change24h: -1.9 },
   NAVX: { price: 0.066, change24h: -2.2 },
   AAPL: { price: 231.4, change24h: 0.6 },
 };
@@ -81,6 +85,11 @@ export function fakeDigest() {
   return Array.from({ length: 44 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
-export const usd = (v: number) =>
-  (v < 0 ? "-$" : "$") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: Math.abs(v) < 1 ? 4 : 2 });
+export const usd = (v: number) => {
+  const a = Math.abs(v);
+  const sign = v < 0 ? "-$" : "$";
+  // Sub-cent token prices (e.g. $0.0000355) would collapse to "$0.00" at 4 decimals — keep 3 sig figs instead.
+  if (a > 0 && a < 0.01) return sign + a.toPrecision(3).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+  return sign + a.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: a < 1 ? 4 : 2 });
+};
 export const pct = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)}%`;

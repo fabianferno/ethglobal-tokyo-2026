@@ -1,0 +1,8 @@
+{
+  "network": "testnet",
+  "packageId": "0x2db0b46db1da6288e2aa18e754b66760ee6237893c192694a8e296c8c3e53a14",
+  "susdType": "0x2db0b46db1da6288e2aa18e754b66760ee6237893c192694a8e296c8c3e53a14::susd::SUSD",
+  "poolId": "0xcf1fbf526ee20685c43a57937b7e906fcc5d7449894ad4350b43286ab2599458",
+  "priceMicro": 3000000,
+  "poolDigest": "FwGYYho6DQwXGfUyZv7mM5Nsw9UtskSr4j15nU1Caxtn"
+}

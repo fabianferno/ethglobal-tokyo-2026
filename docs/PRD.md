@@ -10,11 +10,30 @@ ETHGlobal Tokyo 2026 · Tracks: **Sui DeFi & Payments** · **ENS (Best Use of EN
 
 Type anything into the Start menu — *"minesweeper but leverage futures"*, *"excel of fabianferno.eth's portfolio"*, *"split bills with friends"* — and a working, on‑chain agent app appears **instantly** as a chunky retro window, with its own ENS name and Sui wallet, that you can reuse, share and remix.
 
+**Positioning: apps are places, not programs.** *"Making an app is instant. The name is where everyone meets."* Anyone can make a blank app in a second, the same way anyone can make a blank Google Doc. You open `tab.shibuya-cafe.suica.eth` because that's where your friends, the tab and the money already are. Search ranks by relevance only (for now).
+
+**Pitch lines:** "Clippy was supposed to have a calibrated brain. Office shipped without it. We gave it one, plus a name and a wallet." · "Every game someone asks for becomes a shell everyone else can use instantly."
+
 ## 2. Why
+
+**The thesis.** We're moving towards a future where we don't need apps for anything: agents do the work. But we still need user interfaces, to see what our agents did, to understand it, and to approve or refuse it. So interfaces will be **generated on demand**: changing in real time, and personal to whoever is using them. No frontend to build, no app to install. Suica OS is an experiment in that idea: **a fully hallucinated operating system**, where everything on screen is composed in real time by Jev.
+
+**The question it asks you:** *imagine a search bar where anything you type becomes an app. What would you make?*
 
 - Crypto apps are a wall of unfamiliar UIs. Everyone already knows how Excel, Paint and Minesweeper work.
 - Agents are becoming the way people use money on‑chain, but they have no *home*: no identity, no permissions model, no place to live next to each other.
 - LLM‑generated UIs are slow (seconds) and unpredictable. We want UI that is **generated but instant**.
+- **ENS as the file system.** A filesystem is just names, folders, permissions and links. ENSv2 has all four: subnames, per-folder registries, Enhanced Access Control roles, and aliases. So `suica.eth` *is* the disk: folders are registries, sharing is EAC roles, and moving an app into a folder turns its old name into an ENSv2 alias of the new one, i.e. a symlink, so old share links keep working.
+
+### First-run onboarding (there is no landing page)
+Right after boot, a Windows 98-style **Welcome to Suica OS** dialog is the landing page (`web/src/os/Welcome.tsx`). Topics down the left:
+1. **What is this?** The thesis above, in four sentences.
+2. **Type anything.** Eight real prompts. Each "Try it" opens Start with the prompt already typed.
+3. **Names are files.** The `suica.eth` tree, sharing = EAC roles, moving = alias (symlink).
+4. **Agents & money.** zkLogin, sponsored gas, the fixed signing dialog, and Tappy acting within caps, down to the BSOD.
+5. **How it works.** Jev's typed questions → shell × function × target → real data → generated shells → Sui.
+
+It shows once per browser (with a "Show this each time Suica OS starts" box), and Tappy's greeting waits until it closes. It reopens from Start search ("what is this", "how does this work", "tour").
 
 ## 3. Core concepts
 
@@ -25,9 +44,11 @@ Type anything into the Start menu — *"minesweeper but leverage futures"*, *"ex
 | **Folder = Workspace** | A parent ENS name (`team.suica.eth`). Apps inside are subnames. The folder holds a shared treasury and spend policy that its apps inherit. |
 | **Shell × Function × Target** | Every prompt decomposes into a familiar Win99 app (**shell**), a crypto capability (**function**), whose data (**target**, e.g. an ENS name) and a **vibe**. 40 shells × 30 functions ≈ 1,200 apps from one classifier call. |
 | **Data shapes** | Functions output one of 6 shapes (Table, TimeSeries, List, RiskyGrid, Gauge, Scene). Shells declare which shapes they render. Adapters connect them, so any compatible shell × function works without bespoke code. |
+| **The assistant (Tappy)** | One Clippy-style agent for the whole OS. It's an original character (an IC card with eyes), not Clippy and not the Suica penguin. It speaks only in balloons with buttons, and every line is a template filled with real numbers. It stays quiet unless a code-side threshold is met: Lumière's calibrated "only interrupt when sure and worth it". Autonomy: within the owner's cap it acts, then tells you. Over the cap it asks through the fixed Signing dialog. If an attempt goes over the cap anyway, Move aborts and the BSOD appears. |
+| **Generated shells** | When a prompt names a program we don't have ("tetris but my portfolio"), an LLM writes that SHELL once, in the background. The shell is a renderer for data shapes, so it then works with every function × target. It runs as an untrusted guest: a sandboxed iframe with no network, data pushed in, and propose-only. It's stored on Walrus with a pointer and sha256 at `<label>.shells.suica.eth`. The first installer owns the name. |
 | **Publish / Use / Remix** | Published apps show up in everyone's Start‑menu search. Opening someone else's app gives you your role's view. "Save As…" forks it under your name. |
 
-## 4. The real‑time UI pipeline (Jev only, no LLM on the critical path)
+## 4. The real‑time UI pipeline (Jev on the critical path; LLM only writes new shells in the background)
 
 **Jev decides, code computes.** [Jev](https://typesafe.ai) (TypeSafe AI) is a "System One" model: it never generates text; it answers typed questions (`choice` ≤255 options, `score` 2–10 levels, `noul` yes/no) with calibrated probabilities in ~70–500 ms, for $0.042 / 1M input tokens. All questions in one call are answered in parallel and independently.
 
@@ -53,6 +74,16 @@ Rules (from Jev docs + Shapeshift):
 **Start‑menu search** shows, live:
 - **Best match / Published apps** — keyword shortlist of the ENS app index, then one `noul` per candidate ("does this app do what the user wants?") in the same Jev call.
 - **Create new** — the top‑3 `shell × fn` combos with a live preview.
+
+### Generated shells (non‑blocking, decided 2026‑09‑26)
+"Anything you ask for must be possible." Jev still composes every app instantly from the built-in shells. When the prompt names a program we don't have:
+1. **Instant:** the nearest built-in shell opens with real data ("Excel compatibility mode").
+2. **Tray:** a classic *"Setup is installing TETRIS.EXE…"* dialog shows the stages. An LLM (Vercel AI Gateway, `anthropic/claude-sonnet-5` first, falling back to `openai/gpt-5`) writes the shell. It takes about 2 minutes.
+3. **Gate:** a static check (no network, storage, eval or parent access; must call `suica.onData` and `suica.ready`). Then an in-browser smoke test runs the shell in the same sandbox with real data. It must call `ready()`, draw something and throw no errors. It gets one retry, with the error fed back. Otherwise: *"Setup was unable to install…"*.
+4. **Publish:** the HTML goes to Walrus, and `suica.shell` = `{blobId, sha256, …}` is written to `<label>.shells.suica.eth`. Anyone can load it later; the hash is checked before it runs.
+5. **Ask, never swap:** Tappy says *"TETRIS.EXE is installed! Open your app in it?"* The UI never changes under the person without that.
+
+The code is in `web/src/lib/genshell/*`, `web/src/app/api/shells`, `web/src/shells/GeneratedShell.tsx` and `web/src/assistant/InstallTray.tsx`.
 
 ### Animation layer (non‑blocking)
 1. **Instant:** Jev's `scene` choice selects one of ~20–40 hand‑built GSAP/SVG scenes (coins flowing, ticker tape, defrag blocks, liquidation explosion…).
@@ -90,10 +121,11 @@ Rules (from Jev docs + Shapeshift):
 ## 7. On‑chain design
 
 ### ENS v2 (Sepolia) — central, not cosmetic
-- **Names are for apps and folders only — users are wallets, not names.** The OS owns `suica.eth`:
+- **Names for apps, folders, and one username per user.** The OS owns `suica.eth`:
   - app/agent: `grouptab.suica.eth`
   - folder/workspace: `team.suica.eth`, with its own subregistry
   - app in a folder: `grouptab.team.suica.eth`
+  - username: `alice.users.suica.eth` → the user's browser device key (claimed at log-on, owned by that key, non-transferable). Folders are shared with a username.
 - **First come, first served** under `suica.eth`; a folder owner controls everything inside their folder, so collisions only happen at the top level.
 - **Agent identity:** ENSIP‑25/26 agent text records hold the manifest pointer, agent wallet addresses (incl. Sui coin type), avatar/icon.
 - **Sharing = Enhanced Access Control roles:** owner / member / viewer roles on an app subname drive which view Jev composes.
@@ -116,19 +148,29 @@ Rules (from Jev docs + Shapeshift):
 - MultiBaas indexes ENSv2 Sepolia registry/resolver events → app index + Task Manager feed.
 - Task Manager + My Computer = the **digital asset dashboard** (treasury, per‑agent allocation, actions needed).
 
-### Agent runtime
-- Agent keys server‑side, bounded by `AgentCap` on‑chain.
-- Per tick: Jev answers `action` (hold / rebalance / harvest / deleverage / exit / ask_owner), `volatility`, `anomaly`; code computes amounts; confidence gates autonomy.
-- Every tx is **proposed** by an agent and **approved** in the fixed Signing dialog (or auto‑approved within owner‑set caps).
+### Agent runtime: the assistant
+- **One OS-wide assistant (Tappy)** is the visible face of every app's agent (`web/src/assistant/*`). App windows, installs and crashes feed its triggers. Each trigger is gated by a threshold in code: for example, a loss alert needs more than $500 and more than -25% over 30 days. It never generates text.
+- **Autonomy in three levels:**
+  1. Within the owner's cap, it acts and then tells you ("I settled Shibuya Café Tab…").
+  2. Over the cap, it asks, and the fixed Signing dialog opens.
+  3. If it tries anyway, Move aborts and the BSOD appears, with the assistant looking guilty.
+- **The cap is set from a balloon:** "Want me to handle this tab? ○ Up to ¥5,000/day ○ Always ask me". It mirrors the on-chain AgentCap.
+- **Real Sui auto-execution** (no dialog, AgentCap-gated `vault_pay`) is owned by the Sui lane (`autoExecuteSui`). Until it lands, real transactions go through the dialog (level 2) and only paper mode auto-acts.
+- **Next:** Jev tick questions (`action`, `anomaly`, `ask_owner`) replace the code thresholds as the confidence source.
 
-## 8. Demo script (~3 min)
+## 8. Demo script (~3 min: the thesis, then one place)
 
-1. Boot → zkLogin → Win99 desktop.
-2. Start → `excel of fabianferno.eth portfolio` → spreadsheet of a real ENS‑resolved portfolio appears as you type.
-3. Start → `paint but roast my portfolio` → meme with real numbers; "Send to…" shares `roast.suica.eth`.
-4. Start → `minesweeper but leverage futures` → click a cell → Signing dialog → position opens; hit a mine → liquidation animation.
-5. Start → `split bills with friends` → published `grouptab.suica.eth` is Best Match → teammate opens it on their laptop and gets the member view → agent settles in one sponsored PTB.
-6. Task Manager: live flows across all agents (Curvegrid). A rogue agent exceeds cap → Move rejects → BSOD.
+1. **The thesis** (20s): boot, and the *Welcome to Suica OS* dialog is on screen. Say it: *"This is a fully hallucinated operating system. Nothing here was built as an app; every window is composed in real time by Jev. Agents are going to do the work, but we still need interfaces to see and steer them. So what if the interface was generated, live, and personal? Imagine a search bar where anything you type becomes an app. What would you make?"* Click **Try it → tetris but my portfolio**: it opens instantly in compatibility mode while *Setup is installing TETRIS.EXE* runs in the tray.
+2. **Anything you type** (30s), every window real data:
+   - `paint but roast vitalik.eth`: "AIRDROP LANDFILL", $644K of unsellable airdrops.
+   - `doom but I'm shooting my losses`: losing bags are the demons.
+   - `paint app with eth chart on it`: a hand-drawn live ETH chart.
+   - `compare vitalik.eth and nick.eth` / `gas tracker` (the Curvegrid dashboard, real data).
+3. **Names are files** (30s): open Network Neighborhood (the `suica.eth` "disk"). Drag an app into the `shibuya-cafe` folder: it gets `….shibuya-cafe.suica.eth`, and its old name becomes an **ENSv2 alias**, a symlink, so the old share link still opens it. Share the folder with a teammate: that's an EAC role grant, live on Sepolia.
+4. **The place** (30s): `split bills with friends` shows the published tab as Best Match. The teammate opens the same name on their laptop and joins. *"Making an app is instant. The name is where everyone meets."*
+5. **The agent** (40s): Tappy offers *"Want me to handle this tab? Up to ¥5,000/day"*. OK, and it settles in one sponsored Sui PTB. `send 5 USDC to kenji.eth` goes through the fixed signing dialog. Task Manager shows the agents as processes with real balances.
+6. **Mid-demo:** TETRIS.EXE finishes installing, and Tappy asks *"Open your portfolio in it?"* That's a program nobody wrote, now instant for everyone at `tetris.shells.suica.eth`.
+7. **Safety + close** (20s): an agent tries to overspend, Move aborts, BSOD. Tappy: *"That was me. Sorry. The chain said no, and no funds moved."* Close: *"We don't need apps anymore. We need interfaces that show up when we ask. Suica OS: every app is hallucinated, every name is on ENS, every dollar moves on Sui."*
 
 ## 9. Milestones
 
@@ -143,6 +185,9 @@ Rules (from Jev docs + Shapeshift):
 | M6 | Sui: zkLogin, sponsored tx, `AgentVault` Move package, DeepBook DCA | ⬜ |
 | M7 | Agent runtime + Jev tick loop; MultiBaas indexing | ⬜ |
 | M8 | GSAP scene library (20+) + optional LLM animation upgrade | 🟡 7 scenes |
+| M9 | Real read-only data for any ENS name (`/api/portfolio`) → portfolio, roast, Doom losses | ✅ done (mainnet ENS + Ethplorer) |
+| M10 | Generated shells: tray install, sandbox, smoke test, Walrus + `shells.suica.eth` | ✅ verified end to end: SNAKE.EXE generated (~2 min via `openai/gpt-5`, because the gateway key's free tier blocks Anthropic models), smoke-tested, then Walrus blob + `snake.shells.suica.eth` (sha256 matches) |
+| M11 | Assistant (Tappy): greeting, loss alert → Doom, install lifecycle, Group Tab cap + auto-settle (paper), BSOD apology | ✅ built; real-Sui auto-settle waits on `autoExecuteSui` |
 
 ## 10. Risks / open questions
 
@@ -150,7 +195,9 @@ Rules (from Jev docs + Shapeshift):
 - **Composition ceiling** — the "infinite apps" feel depends on shell/scene/function breadth. Prioritise 6 great shells over 20 weak ones.
 - **Sui testnet liquidity** — many DeFi protocols are mainnet‑only. Plan: DeepBook testnet + our own mock pool; perps in paper mode.
 - **MultiBaas is EVM** — Sui data comes from Sui RPC/GraphQL; MultiBaas covers the ENS/Sepolia side.
-- **Branding** — "Windows 99" is a parody UI kit; don't ship Microsoft logos.
+- **Branding** — "Windows 99" is a parody UI kit; don't ship Microsoft logos. The assistant is an original character, not Clippy; Doom shows as a parody title.
+- **Generated shell quality**: some generations misread data (the first TETRIS read token amounts as dollars; the prompt now spells out `fmt`). Generation takes ~2 min, so the demo's montage shells are pre-installed and only one install runs live.
+- **Generation cost/tier**: Anthropic models on the AI Gateway need paid credits. Until then the fallback chain uses `openai/gpt-5` (`GENSHELL_MODELS` env).
 
 ## 11. Out of scope (hackathon)
 Real file system, multi‑user realtime cursors, mobile layout, mainnet real‑money perps.

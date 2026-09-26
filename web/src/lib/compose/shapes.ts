@@ -45,6 +45,51 @@ export type Scene = {
   stamps: string[];
 };
 
+/**
+ * A serializable Sui intent attached to a proposal. When present, the fixed Signing dialog
+ * builds a real transaction from it, sponsors it via Enoki, simulates it (showing real balance
+ * changes), and on Approve signs + executes it. Absent → the proposal is a mock/paper action.
+ * Kept intentionally small and serializable — it travels inside TxProposal through OS state.
+ */
+export type SuiTransfer = { to: string; amount: number };
+/** Direct wallet-to-wallet payment from the signer's own coins. */
+export type SuiPayIntent = {
+  kind: "pay";
+  /** Move coin type, e.g. 0x2::sui::SUI or the USDC type. */
+  coinType: string;
+  /** Ticker + decimals so the dialog can format base units without a chain read. */
+  symbol: string;
+  decimals: number;
+  /** One or more recipients paid from the sender's coins (never from the sponsor's gas). */
+  transfers: SuiTransfer[];
+};
+/** A capped spend through an app's AgentVault: `vault::agent_pay`. Over-cap → Move abort → BSOD. */
+export type SuiVaultPayIntent = {
+  kind: "vault_pay";
+  packageId: string;
+  vaultId: string;
+  capId: string;
+  coinType: string;
+  symbol: string;
+  decimals: number;
+  recipient: string;
+  amount: number;
+};
+/** A real swap through our mock AMM pool (SUI ↔ SUSD) — powers rebalance + DCA. */
+export type SuiSwapIntent = {
+  kind: "swap";
+  packageId: string;
+  poolId: string;
+  /** The pool entry to call. */
+  fn: "swap_sui_to_susd" | "swap_susd_to_sui";
+  /** Input coin the signer pays from. */
+  coinType: string;
+  symbol: string;
+  decimals: number;
+  amount: number;
+};
+export type SuiIntent = SuiPayIntent | SuiVaultPayIntent | SuiSwapIntent;
+
 export type TxProposal = {
   kind: string;
   summary: string;
@@ -57,6 +102,8 @@ export type TxProposal = {
   /** 0 safe … 2 risky (Jev score). */
   risk: number;
   notes: string[];
+  /** When set, this proposal executes for real on Sui through the Signing dialog. */
+  sui?: SuiIntent;
 };
 
 export type Action = { id: string; label: string; primary?: boolean; tx?: TxProposal };

@@ -8,7 +8,11 @@ import { sepolia } from "viem/chains";
 
 const RPC = process.env.SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com";
 
-export const publicClient = createPublicClient({ chain: sepolia, transport: http(RPC) });
+// Multicall batching: the index reads ~5 text records per name; unbatched, public RPCs rate-limit the burst.
+export const publicClient = createPublicClient({ chain: sepolia, transport: http(RPC), batch: { multicall: true } });
+
+/** eth_getLogs over the whole deployment range. Free-tier keyed RPCs (Alchemy: 10 blocks) can't do this, so it has its own URL. */
+export const logsClient = createPublicClient({ chain: sepolia, transport: http(process.env.SEPOLIA_LOGS_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com") });
 
 let wallet: ReturnType<typeof makeWallet> | null = null;
 function makeWallet() {
