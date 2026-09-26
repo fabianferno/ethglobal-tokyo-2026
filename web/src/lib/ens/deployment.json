@@ -1,0 +1,8 @@
+{
+  "network": "sepolia",
+  "root": "suica.eth",
+  "server": "0xC9Be7046Ed1DDb8E5ea30bB3Af12FbF56Cd717F0",
+  "resolver": "0xb167d2C4705ac624887f0EBa5D64fE4387292Ec4",
+  "rootRegistry": "0xDD9Af7b8b44A00d638D5b8C2502eF1Ac3105eb13",
+  "fromBlock": 11784313
+}

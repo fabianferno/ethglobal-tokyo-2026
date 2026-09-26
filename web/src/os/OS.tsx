@@ -3,13 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/win99/Icon";
 import { Window } from "@/components/win99/Window";
-import { PUBLISHED } from "@/lib/compose/registry";
 import { AppWindow } from "@/shells/AppFrame";
 import { MessageBox, NewFolderDialog, SaveAsDialog, SignDialog } from "@/system/Dialogs";
 import { FolderView, MyComputer, NetworkNeighborhood, RecycleBin, TaskManager, UIKit } from "@/system/SystemApps";
 import { Desktop } from "./Desktop";
 import { StartMenu } from "./StartMenu";
-import { clearBsod, getOS, hydrate, login, openApp, toggleStart, useOS, type Win } from "./store";
+import { clearBsod, getOS, hydrate, login, openApp, refreshIndex, toggleStart, useOS, type Win } from "./store";
 import { Taskbar } from "./Taskbar";
 
 function WindowContent({ win }: { win: Win }) {
@@ -45,14 +44,26 @@ export function OS() {
     hydrate();
   }, []);
 
-  // Share links: /?open=<ens> opens a published agent after log-on.
+  // Published apps + folders come from ENS; refresh on log-on and every minute.
+  useEffect(() => {
+    if (!user) return;
+    void refreshIndex();
+    const id = setInterval(() => void refreshIndex(), 60_000);
+    return () => clearInterval(id);
+  }, [user]);
+
+  // Share links: /?open=<ens> rebuilds the app from its ENS records after log-on.
   useEffect(() => {
     if (!user) return;
     const ens = new URLSearchParams(location.search).get("open");
     if (!ens) return;
-    const app = [...getOS().items.flatMap((i) => (i.kind === "app" ? [i.app] : [])), ...PUBLISHED].find((a) => a.ens === ens);
-    if (app) openApp(app);
     history.replaceState(null, "", location.pathname);
+    void (async () => {
+      const find = () => [...getOS().items.flatMap((i) => (i.kind === "app" ? [i.app] : [])), ...getOS().index].find((a) => a.ens === ens);
+      if (!find()) await refreshIndex();
+      const app = find();
+      if (app) openApp(app);
+    })();
   }, [user]);
 
   // Win key / Ctrl+Esc opens Start, like the real thing.

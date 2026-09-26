@@ -5,6 +5,7 @@ import type { IconName } from "@/components/win99/Icon";
 import { fakeDigest } from "@/lib/chain/mock";
 import { type AppManifest, newId } from "@/lib/compose/compose";
 import { PUBLISHED } from "@/lib/compose/registry";
+import { fromStored, type StoredManifest, toStored } from "@/lib/ens/manifest";
 import { labelOf, ROOT, uniqueName } from "@/lib/ens/names";
 import type { TxProposal } from "@/lib/compose/shapes";
 
@@ -18,7 +19,10 @@ export const SYSTEM_APPS: Record<SystemKey, { label: string; icon: IconName; w: 
   kit: { label: "UI Kit", icon: "logo", w: 760, h: 520 },
 };
 
-type Base = { id: string; x: number; y: number; parent: string | null };
+/** Where this item's ENS name stands on Sepolia. */
+export type ChainStatus = { status: "minting" | "onchain" | "failed" | "local"; txs?: string[]; error?: string };
+
+type Base = { id: string; x: number; y: number; parent: string | null; chain?: ChainStatus };
 export type DesktopItem =
   | (Base & { kind: "system"; system: SystemKey })
   | (Base & { kind: "app"; app: AppManifest })
@@ -61,11 +65,15 @@ export type OSState = {
   activity: Activity[];
   trash: DesktopItem[];
   hydrated: boolean;
+  /** Published apps + folders under suica.eth, read from ENS (falls back to the demo list offline). */
+  index: AppManifest[];
+  indexFolders: string[];
+  indexSource: "loading" | "chain" | "offline";
 };
 
 const KEY = "suicaos:v1";
 
-const initial: OSState = { user: null, items: [], windows: [], z: 10, startOpen: false, bsod: null, balloon: null, activity: [], trash: [], hydrated: false };
+const initial: OSState = { user: null, items: [], windows: [], z: 10, startOpen: false, bsod: null, balloon: null, activity: [], trash: [], hydrated: false, index: [], indexFolders: [], indexSource: "loading" };
 
 let state: OSState = initial;
 const listeners = new Set<() => void>();
@@ -120,13 +128,110 @@ function freeSlot(items: DesktopItem[], parent: string | null) {
   return { x: 8, y: 8 };
 }
 
-/** Is this ENS name already used by any local item or published app? (First come, first served.) */
+/** Is this ENS name already used locally or on-chain? (First come, first served; the mint route has the final say.) */
 export function isTaken(ens: string, exceptItemId?: string) {
   const s = getOS();
   return (
     s.items.some((i) => i.id !== exceptItemId && ((i.kind === "app" && i.app.ens === ens) || (i.kind === "folder" && i.ens === ens))) ||
-    PUBLISHED.some((p) => p.ens === ens)
+    s.index.some((p) => p.ens === ens) ||
+    s.indexFolders.includes(ens)
   );
+}
+
+/* ── ENS (Sepolia) ───────────────────────────────────────── */
+
+type IndexEntry = { ens: string; kind: "app" | "folder"; published: boolean; manifest: StoredManifest | null };
+
+export async function refreshIndex() {
+  try {
+    const res = await fetch("/api/ens/index");
+    const j = (await res.json()) as { entries: IndexEntry[] };
+    if (!res.ok) throw new Error("index unavailable");
+    set(() => ({
+      index: j.entries.flatMap((e) => (e.kind === "app" && e.manifest ? [fromStored(e.ens, e.manifest, e.published)] : [])),
+      indexFolders: j.entries.filter((e) => e.kind === "folder").map((e) => e.ens),
+      indexSource: "chain",
+    }));
+  } catch {
+    // Venue wifi died or no RPC: keep the OS usable with the demo list.
+    set(() => ({ index: PUBLISHED, indexFolders: [], indexSource: "offline" }));
+  }
+}
+
+function patchItem(id: string, patch: Partial<Extract<DesktopItem, { kind: "app" }>> | Partial<Extract<DesktopItem, { kind: "folder" }>>) {
+  set((s) => ({ items: s.items.map((i) => (i.id === id ? ({ ...i, ...patch } as DesktopItem) : i)) }));
+}
+
+/** Mint an item's name on ENS in the background. The UI never waits for this. */
+export async function mintItem(id: string) {
+  const it = getOS().items.find((i) => i.id === id);
+  if (!it || it.kind === "system") return;
+  patchItem(id, { chain: { status: "minting" } });
+
+  let body: unknown;
+  if (it.kind === "folder") body = { kind: "folder", label: labelOf(it.ens) };
+  else {
+    // An app inside a folder needs the folder's registry to exist first.
+    for (let t = 0; t < 60 && it.parent; t++) {
+      const f = getOS().items.find((x) => x.id === it.parent);
+      if (!f || f.chain?.status === "onchain" || f.chain?.status === "local" || f.chain?.status === "failed") break;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    const cur = getOS().items.find((i) => i.id === id);
+    if (!cur || cur.kind !== "app") return;
+    const parentItem = cur.parent ? getOS().items.find((x) => x.id === cur.parent) : undefined;
+    const parent = parentItem && parentItem.kind === "folder" ? parentItem.ens : ROOT;
+    body = { kind: "app", label: labelOf(cur.app.ens), parent, manifest: toStored(cur.app), published: cur.app.published };
+  }
+
+  try {
+    const res = await fetch("/api/ens/mint", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const j = await res.json();
+    if (res.status === 503) return patchItem(id, { chain: { status: "local", error: j.error } });
+    if (!res.ok) throw new Error(j.error ?? res.statusText);
+    const txs = (j.txs as { url: string }[]).map((t) => t.url);
+    const now = getOS().items.find((i) => i.id === id);
+    if (now?.kind === "folder") {
+      const oldEns = now.ens;
+      set((s) => ({
+        items: s.items.map((i) =>
+          i.id === id && i.kind === "folder"
+            ? { ...i, ens: j.ens, name: labelOf(j.ens), chain: { status: "onchain", txs } }
+            : i.kind === "app" && i.parent === id
+              ? { ...i, app: { ...i.app, ens: i.app.ens.replace(oldEns, j.ens) } }
+              : i,
+        ),
+      }));
+    } else if (now?.kind === "app") {
+      if (j.ens !== now.app.ens) updateApp(id, { ens: j.ens });
+      patchItem(id, { chain: { status: "onchain", txs } });
+    }
+    balloon("Minted on ENS", `${j.ens}\n${txs[0]}`);
+    void refreshIndex();
+  } catch (e) {
+    patchItem(id, { chain: { status: "failed", error: (e as Error).message } });
+    balloon("ENS mint failed", `${(e as Error).message}\nRight-click → Mint on ENS to retry.`);
+  }
+}
+
+export async function setPublished(id: string, published: boolean) {
+  const it = getOS().items.find((i) => i.id === id);
+  if (!it || it.kind !== "app") return;
+  updateApp(id, { published });
+  if (it.chain?.status !== "onchain") {
+    balloon(published ? "Published (locally)" : "Unpublished", `${it.app.ens} isn't on ENS yet, so only this machine sees it.`);
+    return;
+  }
+  try {
+    const res = await fetch("/api/ens/publish", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ens: it.app.ens, published }) });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error);
+    balloon(published ? "Published" : "Unpublished", `${it.app.ens} — ${published ? "now in everyone's Start search" : "private again"}\n${j.tx.url}`);
+    void refreshIndex();
+  } catch (e) {
+    updateApp(id, { published: !published });
+    balloon("Publish failed", (e as Error).message);
+  }
 }
 
 /** A user is a wallet, not an ENS name; this handle is just a display name until wallet login lands. */
@@ -135,8 +240,7 @@ export function login(user: string) {
   set((s) => {
     if (s.items.length && s.user === handle) return { user: handle };
     const sys: DesktopItem[] = (["mycomputer", "network", "taskmgr", "recycle", "kit"] as SystemKey[]).map((k, i) => ({ id: `sys_${k}`, kind: "system", system: k, parent: null, x: 8, y: 8 + i * GRID_Y }));
-    const team: DesktopItem = { id: newId("fld"), kind: "folder", name: "team", ens: `team.${ROOT}`, parent: null, x: 8 + GRID_X, y: 8 };
-    return { user: handle, items: [...sys, team], windows: [], activity: [], trash: [] };
+    return { user: handle, items: sys, windows: [], activity: [], trash: [] };
   });
 }
 
@@ -144,12 +248,14 @@ export function logout() {
   set(() => ({ user: null, windows: [], startOpen: false }));
 }
 
-export function installApp(app: AppManifest, parent: string | null = null): DesktopItem {
+/** Create a new app (minted on ENS in the background), or pin an existing on-chain app as-is. */
+export function installApp(app: AppManifest, parent: string | null = null, opts: { pin?: boolean } = {}): DesktopItem {
   const s = getOS();
   const folder = parent ? s.items.find((i) => i.id === parent && i.kind === "folder") : undefined;
-  const ens = uniqueName(labelOf(app.ens), folder && folder.kind === "folder" ? folder.ens : ROOT, (n) => isTaken(n));
-  const item: DesktopItem = { id: newId("itm"), kind: "app", app: { ...app, ens }, parent, ...freeSlot(s.items, parent) };
+  const ens = opts.pin ? app.ens : uniqueName(labelOf(app.ens), folder && folder.kind === "folder" ? folder.ens : ROOT, (n) => isTaken(n));
+  const item: DesktopItem = { id: newId("itm"), kind: "app", app: { ...app, ens }, parent, ...freeSlot(s.items, parent), chain: opts.pin ? { status: "onchain" } : undefined };
   set((st) => ({ items: [...st.items, item] }));
+  if (!opts.pin) void mintItem(item.id);
   return item;
 }
 
@@ -165,6 +271,7 @@ export function newFolder(name: string) {
   const ens = uniqueName(name || "folder", ROOT, (n) => isTaken(n));
   const item: DesktopItem = { id: newId("fld"), kind: "folder", name: labelOf(ens), ens, parent: null, ...freeSlot(s.items, null) };
   set((st) => ({ items: [...st.items, item] }));
+  void mintItem(item.id);
 }
 
 export function moveItem(id: string, x: number, y: number) {
@@ -179,13 +286,16 @@ export function moveIntoFolder(itemId: string, folderId: string | null) {
     return {
       items: s.items.map((i) => {
         if (i.id !== itemId || i.kind !== "app") return i;
-        const ens = uniqueName(labelOf(i.app.ens), folder && folder.kind === "folder" ? folder.ens : ROOT, (n) => isTaken(n, i.id));
+        // A folder is its own namespace, so drop any "-2" collision suffix from the top level.
+        const ens = uniqueName(labelOf(i.app.ens).replace(/-\d+$/, ""), folder && folder.kind === "folder" ? folder.ens : ROOT, (n) => isTaken(n, i.id));
         return { ...i, parent: folderId, ...slot, app: { ...i.app, ens } };
       }),
     };
   });
   const folder = folderId ? getOS().items.find((i) => i.id === folderId) : null;
   if (folder && folder.kind === "folder") balloon("Moved to workspace", `Now inherits ${folder.ens}'s spend policy.`);
+  // ENS names can't be renamed: moving mints the app's new name inside the folder.
+  void mintItem(itemId);
 }
 
 export function trashItem(id: string) {

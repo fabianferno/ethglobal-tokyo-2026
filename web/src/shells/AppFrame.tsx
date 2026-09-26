@@ -3,11 +3,10 @@
 import { useMemo } from "react";
 import { MenuBar, type MenuEntry } from "@/components/win99/Menu";
 import { type AppManifest, buildBundle, SHELL_META } from "@/lib/compose/compose";
-import { PUBLISHED } from "@/lib/compose/registry";
 import type { Action, Bundle } from "@/lib/compose/shapes";
 import type { ConcreteShell } from "@/lib/intent/types";
 import { SceneStrip } from "@/scenes/Scene";
-import { balloon, closeWindow, getOS, installApp, message, openApp, openWindow, propose, updateApp } from "@/os/store";
+import { balloon, closeWindow, getOS, installApp, message, openApp, openWindow, propose, setPublished, updateApp } from "@/os/store";
 import { ExcelShell } from "./Excel";
 import { ExplorerShell } from "./Explorer";
 import { MinesweeperShell } from "./Minesweeper";
@@ -53,7 +52,7 @@ export function AppWindow({ app, winId }: { app: AppManifest; winId: string }) {
   const bundle = useMemo(() => buildBundle(app), [app]);
   const compatible = (Object.keys(SHELL_META) as ConcreteShell[]).filter((s) => SHELL_META[s].accepts.some((k) => bundle[k] !== undefined));
   const item = installedItem(app);
-  const isPublic = PUBLISHED.some((p) => p.id === app.id);
+  const isPublic = app.id.startsWith("ens:") || getOS().index.some((p) => p.ens === app.ens);
 
   const reshape = (shell: ConcreteShell) => {
     const next = { ...app, shell, icon: shell === "explorer" ? app.icon : SHELL_META[shell].icon };
@@ -64,16 +63,12 @@ export function AppWindow({ app, winId }: { app: AppManifest; winId: string }) {
 
   const file: MenuEntry[] = [
     { label: "Save As…", icon: "folder", kbd: "Ctrl+S", onClick: () => openWindow({ title: "Save As", icon: "folder", payload: { type: "saveas", app }, w: 440, h: 260, dialog: true }) },
-    ...(!item && isPublic ? [{ label: "Pin to Desktop", icon: "computer" as const, onClick: () => (installApp(app), balloon("Pinned", app.ens)) }] : []),
+    ...(!item && isPublic ? [{ label: "Pin to Desktop", icon: "computer" as const, onClick: () => (installApp(app, null, { pin: true }), balloon("Pinned", app.ens)) }] : []),
     {
       label: app.published ? "Unpublish" : "Publish to Network",
       icon: "network",
       disabled: !item,
-      onClick: () => {
-        if (!item) return;
-        updateApp(item.id, { published: !app.published });
-        balloon(app.published ? "Unpublished" : "Published", app.published ? `${app.ens} is private again.` : `${app.ens} now shows up in everyone's Start search.`);
-      },
+      onClick: () => item && void setPublished(item.id, !app.published),
     },
     {
       label: "Copy Share Link",

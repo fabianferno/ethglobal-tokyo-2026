@@ -99,7 +99,7 @@ Rules (from Jev docs + Shapeshift):
 - **Sharing = Enhanced Access Control roles:** owner / member / viewer roles on an app subname drive which view Jev composes.
 - **Permissioned resolver:** only the owner (or the folder's policy) can update the manifest; the agent itself can update status records.
 - **Expiring / revocable subnames:** time‑boxed apps (RSVP, event split); Recycle Bin = revoke.
-- **Published app index:** registry events indexed (Curvegrid MultiBaas on Sepolia) → Start‑menu search.
+- **Published app index:** read straight from our registries' `LabelRegistered` events + `suica.published` text records → Start‑menu search and Network Neighborhood.
 
 ### Sui — where the money moves
 - **zkLogin** boot screen (Google → wallet, no seed phrase).
@@ -139,7 +139,7 @@ Rules (from Jev docs + Shapeshift):
 | M2 | Shells v1: Excel, Minesweeper, Paint, Weather, Notepad, Explorer | ✅ done (mock data) |
 | M3 | System apps: Signing dialog, Task Manager, My Computer, BSOD, error dialog | ✅ done (mock data) |
 | M4 | Folders/workspaces, Save As → ENS name, Publish, local app index | ✅ done (localStorage, not on-chain) |
-| M5 | ENSv2 Sepolia: subname registry, text‑record manifests, EAC roles | ⬜ |
+| M5 | ENSv2 Sepolia: subname registry, text‑record manifests, EAC roles | 🟡 suica.eth registered; apps/folders minted with on-chain manifests; index from chain. EAC sharing roles + user-owned names next |
 | M6 | Sui: zkLogin, sponsored tx, `AgentVault` Move package, DeepBook DCA | ⬜ |
 | M7 | Agent runtime + Jev tick loop; MultiBaas indexing | ⬜ |
 | M8 | GSAP scene library (20+) + optional LLM animation upgrade | 🟡 7 scenes |

@@ -12,11 +12,12 @@ import {
   openApp,
   openFolder,
   openSystem,
+  mintItem,
   openWindow,
+  setPublished,
   SYSTEM_APPS,
   toggleStart,
   trashItem,
-  updateApp,
   useOS,
 } from "./store";
 
@@ -57,9 +58,15 @@ export function Desktop() {
     { label: "Open", onClick: () => open(i) },
     ...(i.kind === "app"
       ? ([
-          { label: i.app.published ? "Unpublish" : "Publish to Network", icon: "network", onClick: () => (updateApp(i.id, { published: !i.app.published }), balloon(i.app.published ? "Unpublished" : "Published", i.app.ens)) },
+          { label: i.app.published ? "Unpublish" : "Publish to Network", icon: "network", onClick: () => void setPublished(i.id, !i.app.published) },
           { label: "Save As… (rename)", icon: "folder", onClick: () => openWindow({ title: "Save As", icon: "folder", payload: { type: "saveas", app: i.app }, w: 440, h: 260, dialog: true }) },
         ] as MenuEntry[])
+      : []),
+    ...(i.kind !== "system" && i.chain?.status !== "onchain" && i.chain?.status !== "minting"
+      ? ([{ label: "Mint on ENS", icon: "globe", onClick: () => void mintItem(i.id) }] as MenuEntry[])
+      : []),
+    ...(i.kind !== "system" && i.chain?.txs?.[0]
+      ? ([{ label: "View on Etherscan", icon: "globe", onClick: () => window.open(i.chain!.txs![0], "_blank", "noopener") }] as MenuEntry[])
       : []),
     ...(i.kind !== "system" ? (["sep", { label: "Delete (revoke)", icon: "recycle", onClick: () => trashItem(i.id) }] as MenuEntry[]) : []),
   ];
@@ -115,7 +122,10 @@ export function Desktop() {
               setMenu({ x: e.clientX, y: e.clientY, items: iconMenu(i) });
             }}
           >
-            <Icon name={v.icon} size={40} />
+            <span style={{ position: "relative", lineHeight: 0 }}>
+              <Icon name={v.icon} size={40} />
+              {i.kind !== "system" && <ChainBadge status={i.chain?.status} />}
+            </span>
             <span className="label">{v.label}</span>
             {i.kind !== "system" && <span className="label ens">{v.sub}</span>}
           </div>
@@ -123,5 +133,16 @@ export function Desktop() {
       })}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} />}
     </div>
+  );
+}
+
+/** Tiny corner badge: is this name on ENS yet? */
+function ChainBadge({ status }: { status?: string }) {
+  const [bg, text, title] =
+    status === "onchain" ? ["var(--success-b)", "✓", "Minted on ENS"] : status === "minting" ? ["#c98a00", "…", "Minting on ENS"] : status === "failed" ? ["var(--danger-b)", "!", "Mint failed"] : ["var(--pal-gray3)", "·", "Local only"];
+  return (
+    <span title={title} style={{ position: "absolute", right: -6, bottom: -2, minWidth: 14, height: 14, padding: "0 2px", borderRadius: 7, background: bg, color: "#fff", border: "1px solid #1b1b1b", fontSize: 10, fontWeight: 900, lineHeight: "12px", textAlign: "center" }}>
+      {text}
+    </span>
   );
 }

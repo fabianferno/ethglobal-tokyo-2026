@@ -6,7 +6,6 @@ import { MenuBar, ToolButton, Toolbar } from "@/components/win99/Menu";
 import { LineChart, ListView, Progress } from "@/components/win99/Widgets";
 import { rng, usd } from "@/lib/chain/mock";
 import type { AppManifest } from "@/lib/compose/compose";
-import { PUBLISHED } from "@/lib/compose/registry";
 import {
   balloon,
   bsod,
@@ -86,6 +85,7 @@ export function TaskManager() {
               table={{
                 columns: [
                   { key: "ens", label: "Agent (ENS)" },
+                  { key: "chain", label: "ENS" },
                   { key: "fn", label: "Function" },
                   { key: "status", label: "Status" },
                   { key: "usdc", label: "USDC", fmt: "usd" },
@@ -94,7 +94,7 @@ export function TaskManager() {
                 ],
                 rows: apps.map((a) => {
                   const b = agentBalance(a.app.ens);
-                  return { ens: a.app.ens, fn: a.app.fn, status: a.app.readOnly ? "Watching" : "Running", usdc: b.usdc, sui: b.sui, cap: b.cap };
+                  return { ens: a.app.ens, chain: a.chain?.status === "onchain" ? "⛓ minted" : a.chain?.status === "minting" ? "… minting" : a.chain?.status === "failed" ? "✕ failed" : "local", fn: a.app.fn, status: a.app.readOnly ? "Watching" : "Running", usdc: b.usdc, sui: b.sui, cap: b.cap };
                 }),
               }}
             />
@@ -212,7 +212,12 @@ export function MyComputer() {
 
 export function NetworkNeighborhood() {
   const items = useOS((s) => s.items);
-  const index = useMemo(() => [...items.flatMap((i) => (i.kind === "app" && i.app.published ? [i.app] : [])), ...PUBLISHED], [items]);
+  const chainIndex = useOS((s) => s.index);
+  const source = useOS((s) => s.indexSource);
+  const index = useMemo(() => {
+    const mine = items.flatMap((i) => (i.kind === "app" && i.app.published ? [i.app] : []));
+    return [...mine, ...chainIndex.filter((p) => p.published && !mine.some((m) => m.ens === p.ens))];
+  }, [items, chainIndex]);
   const owners = useMemo(() => {
     const m = new Map<string, AppManifest[]>();
     for (const a of index) m.set(a.owner, [...(m.get(a.owner) ?? []), a]);
@@ -251,7 +256,7 @@ export function NetworkNeighborhood() {
           ))}
         </div>
       </div>
-      <div className="statusbar"><div>Double-click to open — you get your role&apos;s view</div><div>{index.length} published agents</div></div>
+      <div className="statusbar"><div>Double-click to open — you get your role&apos;s view</div><div>{index.length} published agents</div><div>{source === "chain" ? "⛓ ENS Sepolia" : source === "offline" ? "offline (demo list)" : "loading…"}</div></div>
     </div>
   );
 }

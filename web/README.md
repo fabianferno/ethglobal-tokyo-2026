@@ -52,3 +52,27 @@ Start search keystroke
 
 ## Status
 Mock chain data. Next: ENSv2 Sepolia subnames + text-record manifests, Sui zkLogin + sponsored tx + `AgentVault` Move package, MultiBaas indexing. See `../docs/PRD.md` §9.
+
+## ENS (ENSv2 on Sepolia)
+
+Every app and folder is a real ENSv2 subname under **`suica.eth`**, minted by a server wallet:
+
+```
+suica.eth                                   own UserRegistry + PermissionedResolver
+├── grouptab.suica.eth                      app   · text: class=Application, suica.manifest (JSON), suica.published
+└── qa-lab.suica.eth                        folder· text: class=Group · its own UserRegistry
+    └── weather.qa-lab.suica.eth            app in a folder
+```
+
+- `src/lib/ens/contracts.ts` — ENSv2 Sepolia addresses, ABIs, roles, CREATE2 address prediction
+- `src/lib/ens/onchain.ts` — mint app/folder, publish, and the index (registry `LabelRegistered` events + text records)
+- `src/lib/ens/deployment.json` — where suica.eth's registry/resolver live
+- `/api/ens/mint`, `/api/ens/publish`, `/api/ens/index` — route handlers the desktop calls in the background
+- The app's full manifest lives on-chain, so a shared/published app is rebuilt from ENS alone.
+
+Needs `SEPOLIA_PRIVATE_KEY` (funded with Sepolia ETH) in `.env.local`. Without it, apps stay local and the index falls back to the demo list.
+
+```bash
+pnpm ens:setup   # one-time: register suica.eth (idempotent)
+pnpm ens:seed    # mint the demo published apps (idempotent)
+```

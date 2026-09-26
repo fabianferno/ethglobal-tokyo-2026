@@ -5,7 +5,7 @@ import { Icon, type IconName } from "@/components/win99/Icon";
 import { type AppManifest, newId } from "@/lib/compose/compose";
 import type { TxProposal } from "@/lib/compose/shapes";
 import { cleanLabel, ROOT } from "@/lib/ens/names";
-import { balloon, closeWindow, getOS, installApp, isTaken, newFolder, resolveSign, updateApp } from "@/os/store";
+import { balloon, closeWindow, getOS, installApp, isTaken, mintItem, newFolder, resolveSign, updateApp } from "@/os/store";
 
 /**
  * The Signing dialog is fixed OS code — never composed, never generated. Apps can only PROPOSE;
@@ -91,10 +91,12 @@ export function SaveAsDialog({ app, winId }: { app: AppManifest; winId: string }
     if (taken) return;
     if (existing && existing.kind === "app" && existing.parent === (parent || null)) {
       updateApp(existing.id, { ens: `${clean}.${root}` });
+      // ENS names are immutable; a rename is a new mint.
+      void mintItem(existing.id);
     } else {
       installApp({ ...app, id: newId(), ens: `${clean}.${ROOT}`, owner: s.user!, published: false }, parent || null);
     }
-    balloon("Saved", `${clean}.${root} — subname registered (local; ENSv2 Sepolia next)`);
+    balloon("Saved", `${clean}.${root} — minting on ENS…`);
     closeWindow(winId);
   };
   return (

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/win99/Icon";
 import { type AppManifest, draftManifest, SHELL_META, topCombos } from "@/lib/compose/compose";
 import { FUNCTIONS } from "@/lib/compose/functions";
-import { PUBLISHED, shortlist, toCandidate } from "@/lib/compose/registry";
+import { shortlist, toCandidate } from "@/lib/compose/registry";
 import { paramChips, parse } from "@/lib/intent/parse";
 import { topK } from "@/lib/intent/types";
 import { ShellView } from "@/shells/AppFrame";
@@ -39,6 +39,7 @@ const PINNED: { key: SystemKey; label: string; icon: IconName }[] = [
 export function StartMenu() {
   const user = useOS((s) => s.user)!;
   const items = useOS((s) => s.items);
+  const chainIndex = useOS((s) => s.index);
   const [q, setQ] = useState("");
   const [hot, setHot] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -56,8 +57,8 @@ export function StartMenu() {
 
   const index = useMemo(() => {
     const mine = items.flatMap((i) => (i.kind === "app" && i.app.published ? [i.app] : []));
-    return [...mine, ...PUBLISHED.filter((p) => !mine.some((m) => m.ens === p.ens))];
-  }, [items]);
+    return [...mine, ...chainIndex.filter((p) => p.published && !mine.some((m) => m.ens === p.ens))];
+  }, [items, chainIndex]);
   const shortl = useMemo(() => shortlist(q, index), [q, index]);
   const candidates = useMemo(() => shortl.map(toCandidate), [shortl]);
   const { result, busy } = useIntent(q, candidates);
