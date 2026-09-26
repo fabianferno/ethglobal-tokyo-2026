@@ -2,3 +2,6 @@
 # October desktop — local canvas state
 .october/
 .gstack/
+
+# Local demo-video working project (7GB of renders/scratch)
+demo-video/

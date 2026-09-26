@@ -112,3 +112,13 @@ _Alternates in [`docs/assets/screenshots/`](https://github.com/fabianferno/ethgl
 **Note / honesty:** MultiBaas indexing of the ENSv2 Sepolia registry/resolver events (to power the EVM side of the dashboard) is designed and stubbed but **not yet wired** — the current dashboard reads Sui vault state directly over gRPC and the ENS index directly from Sepolia logs. If MultiBaas integration is required for this prize, treat this as in-progress rather than complete.
 
 **Feedback.** The "digital asset dashboard" framing is a great fit for a multi-agent treasury; a MultiBaas path that spans both an EVM chain (our ENSv2 Sepolia events) and a non-EVM chain (our Sui vault state) in one dashboard would have let us unify the two halves — right now we bridge them in app code.
+
+---
+
+## Team
+
+Solo project by **Fabian Ferno** — full stack (OS shell, Jev composer, ENSv2, Sui/Move, dashboard).
+
+- Twitter/X: [@fabianferno](https://x.com/fabianferno)
+- Telegram: [@fabianferno](https://t.me/fabianferno)
+- GitHub: [github.com/fabianferno](https://github.com/fabianferno)

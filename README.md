@@ -85,4 +85,12 @@ The single line-of-code links in the [submission](ethglobal-submission.md) point
 | `web/src/system/` | Fixed OS surfaces: signing dialog, Task Manager, My Computer, BSOD |
 | `web/src/assistant/`, `web/src/lib/genshell/` | Tappy (the OS agent); LLM‑generated shell pipeline |
 
+## Team
+
+Solo project by **Fabian Ferno** — full stack (OS shell, Jev composer, ENSv2, Sui/Move, dashboard).
+
+- Twitter/X: [@fabianferno](https://x.com/fabianferno)
+- Telegram: [@fabianferno](https://t.me/fabianferno)
+- GitHub: [github.com/fabianferno](https://github.com/fabianferno)
+
 Built at ETHGlobal Tokyo 2026. "Windows 98" is a parody UI kit; the assistant is an original character.
