@@ -18,7 +18,7 @@ Without `.env.local` the app still runs: Jev falls back to the offline keyword c
 
 | Area | State |
 |---|---|
-| Win99 UI kit, desktop, windows, Start menu, taskbar, BSOD | Done (`web/src/styles/win99.css`, `web/src/components/win99/*`, `web/src/os/*`) |
+| Win98 UI kit, desktop, windows, Start menu, taskbar, BSOD | Done (`web/src/styles/win99.css`, `web/src/components/win99/*`, `web/src/os/*`) |
 | Jev intent → SHELL × FN × TARGET × VIBE, anti-flicker gate, live preview | Done (`web/src/lib/intent/*`, `web/src/os/StartMenu.tsx`). Gateway key not yet tested live. |
 | Shells: Excel, Minesweeper, Paint, Weather, Notepad, Explorer + **Hologram** (retro 3D, Orion) + **Doom** (positions→enemies, Orion, prototype); ~20 functions; 7 GSAP scenes | Done. Mock by default (`web/src/lib/chain/mock.ts`); Portfolio uses **real Sui balances** when signed in; My Computer shows the **real AgentVault**. Notepad now honors the named shell (topCombos fix, Orion). |
 | ENSv2 Sepolia: `suica.eth` registered, own UserRegistry + PermissionedResolver | Done (`web/src/lib/ens/deployment.json`, `pnpm ens:setup`) |

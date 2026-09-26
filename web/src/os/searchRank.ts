@@ -21,7 +21,7 @@ const SYSTEM_ROUTES: { re: RegExp; key: SystemKey; label: string }[] = [
   { re: /\b(task manager|taskmgr|running agents|what are my agents doing|processes)\b/, key: "taskmgr", label: "Task Manager" },
   { re: /\b(my computer|drives|my agents'? wallets)\b/, key: "mycomputer", label: "My Computer" },
   { re: /\b(recycle bin|trash|deleted apps)\b/, key: "recycle", label: "Recycle Bin" },
-  { re: /\b(ui kit|design system)\b/, key: "kit", label: "Windows 99 UI Kit" },
+  { re: /\b(ui kit|design system)\b/, key: "kit", label: "Windows 98 UI Kit" },
 ];
 
 /** OS actions reachable from search (not apps): "create a folder team" → the New Folder dialog. */

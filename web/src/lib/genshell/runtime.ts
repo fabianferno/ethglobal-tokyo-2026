@@ -18,7 +18,7 @@ export type FromShell =
 
 const CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:";
 
-/** Small Win99 vocabulary the generated code can lean on so it looks native. */
+/** Small Win98 vocabulary the generated code can lean on so it looks native. */
 export const BASE_CSS = `
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#c0c0c0;color:#000;font:12px/1.3 "Tahoma","MS Sans Serif","Segoe UI",sans-serif;-webkit-font-smoothing:none}

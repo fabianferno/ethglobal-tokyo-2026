@@ -5,7 +5,7 @@
 ## Short description *
 _A max 100-character description of your project (it should fit in a tweet!)_
 
-> Type anything; it becomes a Win99 app with its own ENS name & Sui wallet, composed live by Jev.
+> Type anything; it becomes a Win98 app with its own ENS name & Sui wallet, composed live by Jev.
 
 ---
 
@@ -14,7 +14,7 @@ _Go in as much detail as you can about what this project is._
 
 ![Suica OS — type anything, get an app](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/suica-pipeline.png)
 
-**Suica OS is a fully hallucinated, Windows-99-styled operating system where every app is an agent.** There is no landing page and nothing was built as a normal app. You boot into a retro desktop, open the Start menu, and **type anything** — *"excel of vitalik.eth's portfolio"*, *"paint but roast vitalik.eth"*, *"doom but I'm shooting my losses"*, *"split bills with 4 friends"*, *"tetris but my portfolio"* — and a working, on-chain app appears **instantly** as a chunky retro window, as fast as you can type.
+**Suica OS is a fully hallucinated, Windows-98-styled operating system where every app is an agent.** There is no landing page and nothing was built as a normal app. You boot into a retro desktop, open the Start menu, and **type anything** — *"excel of vitalik.eth's portfolio"*, *"paint but roast vitalik.eth"*, *"doom but I'm shooting my losses"*, *"split bills with 4 friends"*, *"tetris but my portfolio"* — and a working, on-chain app appears **instantly** as a chunky retro window, as fast as you can type.
 
 **Why we built it.** We're heading toward a future where we don't need apps for everything — agents do the work. But we still need interfaces: to *see* what our agents did, understand it, and approve or refuse it. So interfaces will be **generated on demand** — changing in real time, personal to whoever is using them. Suica OS is an experiment in that idea: an OS where every window is composed live, every app has an identity, and every dollar it moves is gated on-chain.
 
@@ -33,7 +33,7 @@ _The nitty-gritty. What technologies did you use? How are they pieced together?_
 
 ![Suica OS — how the tech fits together](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/suica-architecture.png)
 
-**Frontend / OS shell.** Next.js 16 + React 19 + TypeScript. No UI framework — the "Windows 99" kit is hand-written CSS (`win99.css`) with a custom window manager, taskbar, Start menu, and a real BSOD. GSAP powers ~20 hand-built animation scenes.
+**Frontend / OS shell.** Next.js 16 + React 19 + TypeScript. No UI framework — the "Windows 98" kit is hand-written CSS (`win99.css`) with a custom window manager, taskbar, Start menu, and a real BSOD. GSAP powers ~20 hand-built animation scenes.
 
 **The real-time UI engine is Jev (TypeSafe AI), not an LLM.** On every keystroke we make **one** call to Jev — a "System One" model that never writes text, it only answers ~20 typed questions (`choice`/`score`/`noul`) in parallel with calibrated probabilities in ~70–500 ms. Jev decides *shell × function × target × vibe × risk*; a deterministic parser extracts the numbers (ENS names, tokens, amounts, leverage, schedules). **Jev decides, code computes** — a model never invents an amount. We route Jev through the **Vercel AI Gateway**. An offline keyword classifier with the identical output shape keeps the demo alive without a key. 6 data *shapes* (Table, TimeSeries, List, RiskyGrid, Gauge, Scene) let any of ~40 shells render any of ~30 functions — ~1,200 apps from one classifier call.
 

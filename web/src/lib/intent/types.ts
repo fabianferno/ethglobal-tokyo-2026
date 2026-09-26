@@ -1,6 +1,6 @@
 /**
  * Shared vocabulary between Jev (server), the offline classifier and the composer.
- * Every prompt = SHELL (a familiar Win99 app) × FN (a crypto capability) × TARGET × VIBE.
+ * Every prompt = SHELL (a familiar Win98 app) × FN (a crypto capability) × TARGET × VIBE.
  */
 
 export const SHELL_KEYS = ["excel", "minesweeper", "doom", "paint", "weather", "notepad", "hologram", "explorer", "unspecified"] as const;

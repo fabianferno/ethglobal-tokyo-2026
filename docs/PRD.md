@@ -1,6 +1,6 @@
 # Suica OS — PRD
 
-> A fully hallucinated, Windows‑99‑styled operating system where every app is an agent with an ENS name and a Sui wallet, and every UI is composed in real time by Jev.
+> A fully hallucinated, Windows‑98‑styled operating system where every app is an agent with an ENS name and a Sui wallet, and every UI is composed in real time by Jev.
 
 ETHGlobal Tokyo 2026 · Tracks: **Sui DeFi & Payments** · **ENS (Best Use of ENSv2)** · **Curvegrid (Best Digital Asset Dashboard)**
 
@@ -42,7 +42,7 @@ It shows once per browser (with a "Show this each time Suica OS starts" box), an
 | **App = Agent** | Every app is an agent: an ENS (v2) name + a Sui wallet + a manifest + a policy. The UI is disposable; the identity and money persist. |
 | **Manifest** | ~1 KB of Jev answers + parsed params + roles + policy, stored in the agent's ENS text records. Anyone who resolves the name can rebuild the exact UI instantly — no model call. |
 | **Folder = Workspace** | A parent ENS name (`team.suica.eth`). Apps inside are subnames. The folder holds a shared treasury and spend policy that its apps inherit. |
-| **Shell × Function × Target** | Every prompt decomposes into a familiar Win99 app (**shell**), a crypto capability (**function**), whose data (**target**, e.g. an ENS name) and a **vibe**. 40 shells × 30 functions ≈ 1,200 apps from one classifier call. |
+| **Shell × Function × Target** | Every prompt decomposes into a familiar Win98 app (**shell**), a crypto capability (**function**), whose data (**target**, e.g. an ENS name) and a **vibe**. 40 shells × 30 functions ≈ 1,200 apps from one classifier call. |
 | **Data shapes** | Functions output one of 6 shapes (Table, TimeSeries, List, RiskyGrid, Gauge, Scene). Shells declare which shapes they render. Adapters connect them, so any compatible shell × function works without bespoke code. |
 | **The assistant (Tappy)** | One Clippy-style agent for the whole OS. It's an original character (an IC card with eyes), not Clippy and not the Suica penguin. It speaks only in balloons with buttons, and every line is a template filled with real numbers. It stays quiet unless a code-side threshold is met: Lumière's calibrated "only interrupt when sure and worth it". Autonomy: within the owner's cap it acts, then tells you. Over the cap it asks through the fixed Signing dialog. If an attempt goes over the cap anyway, Move aborts and the BSOD appears. |
 | **Generated shells** | When a prompt names a program we don't have ("tetris but my portfolio"), an LLM writes that SHELL once, in the background. The shell is a renderer for data shapes, so it then works with every function × target. It runs as an untrusted guest: a sandboxed iframe with no network, data pushed in, and propose-only. It's stored on Walrus with a pointer and sha256 at `<label>.shells.suica.eth`. The first installer owns the name. |
@@ -69,7 +69,7 @@ Rules (from Jev docs + Shapeshift):
 1. Ask every question every time (speculative fan‑out); code decides which answers matter.
 2. Never ask Jev to extract values, count, or do math — the parser does that.
 3. Confidence thresholds live in code, not prompts. Low confidence → "Did you mean" chips.
-4. `isNonsense` high → a real Win99 error dialog (*"Windows cannot find 'fridge.exe'"*) with suggestions.
+4. `isNonsense` high → a real Win98 error dialog (*"Windows cannot find 'fridge.exe'"*) with suggestions.
 
 **Start‑menu search** shows, live:
 - **Best match / Published apps** — keyword shortlist of the ENS app index, then one `noul` per candidate ("does this app do what the user wants?") in the same Jev call.
@@ -176,7 +176,7 @@ The code is in `web/src/lib/genshell/*`, `web/src/app/api/shells`, `web/src/shel
 
 | # | Scope | Status |
 |---|---|---|
-| M0 | Win99 UI kit, desktop, window manager, taskbar, Start menu | ✅ done |
+| M0 | Win98 UI kit, desktop, window manager, taskbar, Start menu | ✅ done |
 | M1 | `/api/intent` (Jev + offline fallback), parser, live Start search + preview | ✅ done (Jev online path untested without key) |
 | M2 | Shells v1: Excel, Minesweeper, Paint, Weather, Notepad, Explorer | ✅ done (mock data) |
 | M3 | System apps: Signing dialog, Task Manager, My Computer, BSOD, error dialog | ✅ done (mock data) |
@@ -195,7 +195,7 @@ The code is in `web/src/lib/genshell/*`, `web/src/app/api/shells`, `web/src/shel
 - **Composition ceiling** — the "infinite apps" feel depends on shell/scene/function breadth. Prioritise 6 great shells over 20 weak ones.
 - **Sui testnet liquidity** — many DeFi protocols are mainnet‑only. Plan: DeepBook testnet + our own mock pool; perps in paper mode.
 - **MultiBaas is EVM** — Sui data comes from Sui RPC/GraphQL; MultiBaas covers the ENS/Sepolia side.
-- **Branding** — "Windows 99" is a parody UI kit; don't ship Microsoft logos. The assistant is an original character, not Clippy; Doom shows as a parody title.
+- **Branding** — "Windows 98" is a parody UI kit; don't ship Microsoft logos. The assistant is an original character, not Clippy; Doom shows as a parody title.
 - **Generated shell quality**: some generations misread data (the first TETRIS read token amounts as dollars; the prompt now spells out `fmt`). Generation takes ~2 min, so the demo's montage shells are pre-installed and only one install runs live.
 - **Generation cost/tier**: Anthropic models on the AI Gateway need paid credits. Until then the fallback chain uses `openai/gpt-5` (`GENSHELL_MODELS` env).
 

@@ -36,7 +36,7 @@ const PINNED: { key: SystemKey; label: string; icon: IconName }[] = [
   { key: "mycomputer", label: "My Computer", icon: "computer" },
   { key: "taskmgr", label: "Task Manager", icon: "task" },
   { key: "network", label: "Network Neighborhood", icon: "network" },
-  { key: "kit", label: "Windows 99 UI Kit", icon: "logo" },
+  { key: "kit", label: "Windows 98 UI Kit", icon: "logo" },
 ];
 
 export function StartMenu() {

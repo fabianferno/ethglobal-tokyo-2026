@@ -4,7 +4,7 @@ import { Icon } from "@/components/win99/Icon";
 import { GroupBox, LineChart, ListView, Progress } from "@/components/win99/Widgets";
 import type { ShellProps } from "./AppFrame";
 
-/** The universal shell: Win99 "web view" folder layout. Renders whatever shapes the function produced. */
+/** The universal shell: Win98 "web view" folder layout. Renders whatever shapes the function produced. */
 export function ExplorerShell({ app, bundle, preview, run }: ShellProps) {
   return (
     <div className="row grow" style={{ alignItems: "stretch", gap: 6, minHeight: 0 }}>

@@ -582,7 +582,7 @@ export function UIKit() {
             </div>
             <div className="row" style={{ flexWrap: "wrap", gap: 16 }}>
               <label className="row">Text Input <input className="field" /></label>
-              <label className="row">Dropdown <select className="field"><option>Windows 99</option></select></label>
+              <label className="row">Dropdown <select className="field"><option>Windows 98</option></select></label>
               <label className="check"><input type="checkbox" defaultChecked /> Checkbox</label>
               <label className="radio"><input type="radio" name="r" defaultChecked /> Radio</label>
               <input type="range" className="slider" value={vol} onChange={(e) => setVol(+e.target.value)} style={{ ["--pct" as string]: `${vol}%` }} />

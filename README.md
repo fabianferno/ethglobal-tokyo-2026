@@ -1,6 +1,6 @@
 # Suica OS — ETHGlobal Tokyo 2026
 
-A fully hallucinated, Windows‑99‑styled operating system where **every app is an agent** with an ENS name and a Sui wallet, and every UI is composed **in real time by Jev** (TypeSafe AI) — no LLM on the critical path.
+A fully hallucinated, Windows‑98‑styled operating system where **every app is an agent** with an ENS name and a Sui wallet, and every UI is composed **in real time by Jev** (TypeSafe AI) — no LLM on the critical path.
 
 Type anything into Start → *"excel of vitalik.eth portfolio"*, *"paint but roast vitalik.eth"*, *"doom but I'm shooting my losses"*, *"split bills with 4 friends"*, *"tetris but my portfolio"* — and a working, on‑chain agent app appears as you type.
 
@@ -53,7 +53,7 @@ Without a key the OS runs on an offline keyword classifier with the exact same o
 
 | Path | What |
 |---|---|
-| `web/src/os/`, `web/src/styles/win99.css` | The Windows‑99 OS shell, window manager, Start menu, Welcome (landing page) |
+| `web/src/os/`, `web/src/styles/win99.css` | The Windows‑98 OS shell, window manager, Start menu, Welcome (landing page) |
 | `web/src/lib/intent/`, `web/src/lib/compose/` | Jev question schema + parser; data shapes, functions, composer |
 | `web/src/shells/` | Excel, Minesweeper, Paint, Weather, Notepad, Explorer, Doom, Hologram, generated shells |
 | `web/src/lib/ens/`, `web/src/app/api/ens/` | ENSv2 minting, EAC roles, per‑name resolvers, usernames, aliasing |
@@ -61,4 +61,4 @@ Without a key the OS runs on an offline keyword classifier with the exact same o
 | `web/src/system/` | Fixed OS surfaces: signing dialog, Task Manager, My Computer, BSOD |
 | `web/src/assistant/`, `web/src/lib/genshell/` | Tappy (the OS agent); LLM‑generated shell pipeline |
 
-Built at ETHGlobal Tokyo 2026. "Windows 99" is a parody UI kit; the assistant is an original character.
+Built at ETHGlobal Tokyo 2026. "Windows 98" is a parody UI kit; the assistant is an original character.
