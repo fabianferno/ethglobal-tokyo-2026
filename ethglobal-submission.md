@@ -59,21 +59,23 @@ _The nitty-gritty. What technologies did you use? How are they pieced together?_
 
 ![Excel of vitalik.eth portfolio](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/02-excel-portfolio.png)
 
-**3. `paint but roast vitalik.eth`** — MS Paint roasting real holdings under an "AIRDROP LANDFILL" flame banner, with real numbers ($645,606.20 of unsellable airdrops).
+**3. `hologram of vitalik.eth portfolio`** — the same prompt, a different shell: a live **3D** (Direct3D) view of vitalik.eth's holdings as bars, $181,414.83 from mainnet + Ethplorer. Any function renders in any shell.
 
-![Paint roast of vitalik.eth](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/03-paint-roast.png)
+![3D View of vitalik.eth portfolio](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/03-3d-portfolio.png)
 
-**4. Network Neighborhood** — the `suica.eth` "disk": owners and their published agents read live from the ENSv2 index on Sepolia ("13 published agents · ENS Sepolia"). ENS-as-filesystem.
+**4. `tetris but my portfolio` — a generated shell.** A program nobody wrote: an LLM generated **TETRIS.EXE**, it was sandbox-tested and published to **Walrus** at `tetris.shells.suica.eth`, and now it renders the portfolio as falling blocks — instant for everyone. The status bar shows "Generated shell · sandboxed · tetris.shells.suica.eth".
 
-![Network Neighborhood — the suica.eth tree](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/04-network-neighborhood.png)
+![TETRIS.EXE — a generated shell from Walrus](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/04-tetris.png)
 
-**5. BSOD — the on-chain safety story.** A rogue agent tries to overspend; the AgentVault Move module rejects `agent_pay` (abort code 2, EOverTxCap: attempted 20000000000 MIST vs the 20000000 MIST per-tx cap), the AgentCap is frozen, and **no funds moved**. The transaction is enforced by Move, not the UI. (The fixed Signing dialog — decoded tx + risk badge + AgentCap check — lives in `web/src/system/Dialogs.tsx`.)
+**5. Network Neighborhood** — the `suica.eth` "disk": owners and their published agents read live from the ENSv2 index on Sepolia ("13 published agents · ENS Sepolia"). ENS-as-filesystem.
 
-![BSOD — Move rejected the over-cap agent_pay](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/05-bsod.png)
+![Network Neighborhood — the suica.eth tree](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/05-network-neighborhood.png)
 
-**6. Task Manager** — the digital-asset dashboard (Curvegrid): every agent as a process with its ENS name, function, live balances (USDC/SUI), and per-day cap; "$1,768.00 under management", End Process = revoke the AgentCap.
+**6. My Computer** — the Sui dashboard (Curvegrid): each agent wallet is a drive, with the live **AgentVault (C:)** showing its real balance and a day-cap usage bar (0.025/0.05 SUI, fee 1%), Treasury (D:), and per-app agent drives. "4 wallets · 1 live on Sui · Sui Testnet".
 
-![Task Manager — agents as processes](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/06-task-manager.png)
+![My Computer — AgentVault drive dashboard](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/06-my-computer.png)
+
+_Alternates in [`docs/assets/screenshots/`](https://github.com/fabianferno/ethglobal-tokyo-2026/tree/main/docs/assets/screenshots) if you want to swap any out: `alt-paint-roast.png` (the "AIRDROP LANDFILL" roast), `alt-task-manager.png` (agents-as-processes dashboard), `alt-bsod.png` (the BSOD from a real over-cap `agent_pay` Move abort — the on-chain safety story)._
 
 ---
 
