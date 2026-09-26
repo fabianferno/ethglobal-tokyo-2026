@@ -49,16 +49,31 @@ _The nitty-gritty. What technologies did you use? How are they pieced together?_
 
 ---
 
-## Screenshots (get 6)
+## Screenshots (6)
 
-Capture these six (the Welcome dialog is the "landing page"):
+**1. Welcome to Suica OS** — the boot dialog *is* the landing page: the thesis, on the retro desktop, with Tappy in the corner.
 
-1. **Boot + Welcome to Suica OS** dialog on the retro desktop (the thesis).
-2. **`excel of vitalik.eth portfolio`** — a real wallet as a spreadsheet, `=PNL()` and Chart Wizard.
-3. **`paint but roast vitalik.eth`** — MS Paint roasting real holdings ("AIRDROP LANDFILL").
-4. **Network Neighborhood / the `suica.eth` tree** — folders + published apps (ENS-as-filesystem), plus a folder Share (EAC role grant).
-5. **The fixed Signing dialog** on a Sui payment (decoded tx, risk badge, AgentCap check) — and/or the **BSOD** after a rogue over-cap `agent_pay`.
-6. **Task Manager / My Computer** — the digital-asset dashboard: agents as processes, AgentVault drive with real balance + day-cap bar (Curvegrid).
+![Welcome to Suica OS](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/01-welcome.png)
+
+**2. `excel of vitalik.eth portfolio`** — a real wallet as a live spreadsheet: 24 assets, $182,500.40 from Ethereum mainnet + Ethplorer, `=B2*C2` formulas, "Viewing vitalik.eth (read-only)", and Tappy flagging the FOLD loss.
+
+![Excel of vitalik.eth portfolio](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/02-excel-portfolio.png)
+
+**3. `paint but roast vitalik.eth`** — MS Paint roasting real holdings under an "AIRDROP LANDFILL" flame banner, with real numbers ($645,606.20 of unsellable airdrops).
+
+![Paint roast of vitalik.eth](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/03-paint-roast.png)
+
+**4. Network Neighborhood** — the `suica.eth` "disk": owners and their published agents read live from the ENSv2 index on Sepolia ("13 published agents · ENS Sepolia"). ENS-as-filesystem.
+
+![Network Neighborhood — the suica.eth tree](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/04-network-neighborhood.png)
+
+**5. BSOD — the on-chain safety story.** A rogue agent tries to overspend; the AgentVault Move module rejects `agent_pay` (abort code 2, EOverTxCap: attempted 20000000000 MIST vs the 20000000 MIST per-tx cap), the AgentCap is frozen, and **no funds moved**. The transaction is enforced by Move, not the UI. (The fixed Signing dialog — decoded tx + risk badge + AgentCap check — lives in `web/src/system/Dialogs.tsx`.)
+
+![BSOD — Move rejected the over-cap agent_pay](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/05-bsod.png)
+
+**6. Task Manager** — the digital-asset dashboard (Curvegrid): every agent as a process with its ENS name, function, live balances (USDC/SUI), and per-day cap; "$1,768.00 under management", End Process = revoke the AgentCap.
+
+![Task Manager — agents as processes](https://raw.githubusercontent.com/fabianferno/ethglobal-tokyo-2026/main/docs/assets/screenshots/06-task-manager.png)
 
 ---
 
