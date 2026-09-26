@@ -46,8 +46,8 @@ const FN_RULES: Rules<FnKey> = [
   [/\b(dca|dollar.?cost|grid ?bot|auto.?buy)\b/, "dca", 6],
   // "buy X every day" and "every week put into Y" — a buy/accumulate verb next to any recurrence, either order.
   [/\b(buy|stack|accumulate|invest|put|into)\b[\s\S]*\b(every|each|daily|weekly|monthly|hourly)\b|\b(every|each|daily|weekly|monthly|hourly)\b[\s\S]*\b(buy|stack|accumulate|invest|into)\b/, "dca", 6],
-  [/\b(lp|liquidity|pool|amm|clmm|range)\b/, "lp", 5],
-  [/\b(yield|apy|apr|interest|savings? (account|rate)|best rate|lend(ing)?)\b/, "yield", 5],
+  [/\b(lp|liquidity|pools?|amm|clmm|range)\b/, "lp", 5],
+  [/\b(yields?|apys?|aprs?|interest|savings? (account|rate)|best rates?|lend(ing)?)\b/, "yield", 5],
   [/\b(stakes?|staking|lst|validator)\b/, "stake", 5],
   [/\b(liquidations?|health ?factor|protect my loan|loan|collateral)\b/, "loan_guard", 5],
   [/\b(club|dao|group fund|invest with friends|vote|votes)\b/, "club", 5],
@@ -76,6 +76,10 @@ const FN_RULES: Rules<FnKey> = [
   [/\b(send|transfer|remit|wire|tip)\b(?![\s\S]*\b(all (funds|my|the)|everything|me back)\b)[\s\S]*\bto\b[\s\S]*(\.eth|0x[a-f0-9]{6}|\d)|\b(tip|pay)\b(?! ?per)(?! me)\s+[\w.@-]+\s+\d/, "pay", 6.5],
   [/\b(gas|gwei|gas ?fees?|gas ?price|gas ?tracker|transaction (cost|fee)|network fee)\b/, "gas", 6],
   [/\b(compare|versus|vs\.?|side by side|who('?s| is) (richer|winning)|against)\b/, "compare", 6],
+  // Where to trade a token: best venue / price across exchanges, DEXes and chains. Beats price_chart's bare "price".
+  [/\bwhere (to|should i|can i|do i) (sell|buy|trade|swap|exchange|dump|cash out)\b|\bbest (price|place|venue|exchange|market|rate) (to|for) (sell|buy|trade|swap|exchange)\b|\b(which|what) (exchange|dex|venue|market)\b|\b(cheapest|best) (exchange|dex|venue)s?\b|\barbitrage|\bliquidate\b|\bexit (my )?(position|bag)s?\b|\bprices? (across|on) (exchanges|dexes|chains|venues|markets)\b/, "markets", 7],
+  // DEX activity and liquidity flows are the pool view.
+  [/\b(dex (activity|volume|trades?|flows?)|trading volume|liquidity (flows?|movements?|moving)|buy.?sell pressure|order ?flow|whales?|whale trades|large trades|swaps? (today|on|activity))\b/, "lp", 6.5],
 ];
 
 const VIBE_RULES: Rules<Vibe> = [
@@ -140,7 +144,7 @@ export function mockClassify(text: string, candidates: Candidate[] = []): Intent
   // Nothing matched (any length, including single words and emoji) → it's a "cannot find X.exe" case.
   const nonsense = known ? 0.04 : 0.7;
   const readOnly = /\b[a-z0-9-]+\.eth\b/.test(t) && !/\b(my|mine)\b/.test(t.replace(/\b[a-z0-9-]+\.eth\b/g, "")) ? 0.85 : 0.08;
-  const risk = fn.value === "perps" || /\b\d+x|leverage/.test(t) ? 1.9 : ["portfolio", "roast", "market_mood", "journal", "price_chart", "gas", "compare", "none"].includes(fn.value) ? 0.1 : 0.9;
+  const risk = fn.value === "perps" || /\b\d+x|leverage/.test(t) ? 1.9 : ["portfolio", "roast", "market_mood", "journal", "price_chart", "gas", "compare", "markets", "none"].includes(fn.value) ? 0.1 : 0.9;
 
   return {
     shell,

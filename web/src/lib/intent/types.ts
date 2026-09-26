@@ -32,6 +32,7 @@ export const FN_KEYS = [
   "price_chart",
   "gas",
   "compare",
+  "markets",
   "none",
 ] as const;
 export type FnKey = (typeof FN_KEYS)[number];

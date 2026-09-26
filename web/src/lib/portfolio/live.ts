@@ -3,6 +3,7 @@
 import { pct, usd } from "@/lib/chain/mock";
 import type { AppManifest } from "@/lib/compose/compose";
 import type { Bundle } from "@/lib/compose/shapes";
+import { defiBundleFor } from "@/lib/defi/live";
 import type { RealHolding, RealPortfolio } from "./types";
 
 /**
@@ -169,6 +170,7 @@ function fetchGas(): Promise<GasReport> {
 
 export async function liveBundleFor(app: AppManifest, base: Bundle): Promise<Bundle | null> {
   const fn = app.fn as string;
+  if (fn === "yield" || fn === "lp" || fn === "markets" || fn === "market_mood") return defiBundleFor(app, base);
   if (fn === "gas") {
     try {
       return gasBundle(base, await fetchGas());

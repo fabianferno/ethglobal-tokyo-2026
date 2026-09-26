@@ -123,7 +123,7 @@ export function draftManifest(opts: {
   const namedTarget = params.ensNames.length > 0 || (params.addresses?.length ?? 0) > 0;
   // Only "viewing" functions are read-only when the target is someone else. Action functions (pay, split,
   // checkout…) are never read-only just because a counterparty is named — you act as yourself.
-  const viewOnly = ["portfolio", "roast", "journal", "market_mood", "price_chart", "compare", "gas"].includes(fn);
+  const viewOnly = ["portfolio", "roast", "journal", "market_mood", "price_chart", "compare", "gas", "markets", "yield", "lp"].includes(fn);
   const readOnly = viewOnly && (target !== owner || (intent.signals.readOnly > 0.5 && namedTarget));
   const def = FUNCTIONS[fn];
   const slugBase = def.slug;

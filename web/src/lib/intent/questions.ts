@@ -46,6 +46,7 @@ export const baseQuestions = {
     price_chart: "Show a token's price chart or graph over time: a price line, candles, price history, or how a coin has been doing",
     gas: "Show current network gas fees or gas prices: Ethereum gwei, transaction costs, a gas or gwei tracker",
     compare: "Compare two different wallets or portfolios side by side",
+    markets: "Find where to sell, buy or exchange a token at the best price: compare exchanges, DEXes and chains, liquidate efficiently, arbitrage",
     none: "Nothing to do with money, or too unclear to tell yet",
   }),
 

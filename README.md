@@ -74,6 +74,7 @@ The single line-of-code links in the [submission](ethglobal-submission.md) point
 - Dashboard UI (Task Manager + My Computer, "Action needed" flags): [`web/src/system/SystemApps.tsx`](web/src/system/SystemApps.tsx)
 - ENS name → addr(784) → AgentVault + AgentCap, read live: [`web/src/lib/sui/agents.ts`](web/src/lib/sui/agents.ts) · [`api/sui/vault/agents`](web/src/app/api/sui/vault/agents/route.ts) · demo vault [`api/sui/vault/state`](web/src/app/api/sui/vault/state/route.ts)
 - End Process = on-chain `vault::revoke` (creator-signed): [`api/sui/vault/revoke`](web/src/app/api/sui/vault/revoke/route.ts)
+- Live DeFi analytics across chains (yields, DEX pools and flows, best venue to trade, realized volatility): [`web/src/lib/defi/server.ts`](web/src/lib/defi/server.ts) · bundles [`web/src/lib/defi/live.ts`](web/src/lib/defi/live.ts) · [`api/defi/{yields,pools,markets}`](web/src/app/api/defi)
 - Move unit tests for every cap the dashboard shows (11 passing): [`web/move/suica_vault/tests/vault_tests.move`](web/move/suica_vault/tests/vault_tests.move) — run with `pnpm sui:test` (Docker, no local Sui CLI)
 
 ## Repo layout

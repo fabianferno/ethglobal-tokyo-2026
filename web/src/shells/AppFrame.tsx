@@ -211,7 +211,8 @@ function useLiveBundle(app: AppManifest, preview?: boolean): Bundle {
   // Identity of the data we WANT, so a stale async result is never rendered. Keyed on target + shell
   // (the Doom shell renders a "losses" variant of the same holdings). In preview canLiveSui is false,
   // so this is the ens key and the liveBundleFor branch runs.
-  const key = canLiveSui ? `sui:${suiAddress}:${app.shell}` : `ens:${app.target}:${app.shell}`;
+  // fn + tokens + prompt too, so "usdc yield" never shows while "eth yield" is loading.
+  const key = canLiveSui ? `sui:${suiAddress}:${app.shell}` : `ens:${app.target}:${app.shell}:${app.fn}:${app.params.tokens.join(",")}:${app.prompt}`;
   const [live, setLive] = useState<{ key: string; bundle: Bundle } | null>(null);
 
   useEffect(() => {

@@ -660,6 +660,22 @@ export const FUNCTIONS: Record<FnKey, FnDef> = {
     },
   },
 
+  markets: {
+    label: "Where to Trade",
+    icon: "chart",
+    slug: "markets",
+    defaultShell: "excel",
+    blurb: (c) => `Best place to sell or buy ${tok(c, "ETH")} across exchanges and chains`,
+    // No sample prices: a made-up "best venue" is worse than a loading row. The live route fills it.
+    build: (c) => ({
+      title: `Where to trade ${tok(c, "ETH")}`,
+      subtitle: "Fetching live quotes from DEXes and exchanges…",
+      table: { columns: [{ key: "venue", label: "Venue", fmt: "text" }, { key: "price", label: "Price", fmt: "text" }], rows: [{ venue: "Loading live quotes…", price: "" }] },
+      list: { items: [{ icon: "info", title: "Comparing DEX pools across chains and centralized exchanges", subtitle: "GeckoTerminal + CoinGecko, read-only" }] },
+      actions: [],
+    }),
+  },
+
   none: {
     label: "Blank App",
     icon: "document",
