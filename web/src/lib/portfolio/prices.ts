@@ -48,12 +48,18 @@ async function idFor(symbol: string): Promise<{ id: string; name: string }> {
 
 async function load(symbol: string, days: number): Promise<PriceHistory> {
   const { id, name } = await idFor(symbol);
-  const res = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=${days}&interval=daily`, { headers: headers() });
+  // Daily closes from a week up; below that, CoinGecko's automatic hourly/5-minute points (an intraday chart).
+  const res = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=${days}${days >= 7 ? "&interval=daily" : ""}`, { headers: headers() });
   const j = (await res.json()) as { prices?: [number, number][]; status?: { error_message?: string } };
   if (!res.ok || !j.prices?.length) throw new Error(j.status?.error_message ?? `price history unavailable (${res.status})`);
-  const closes = j.prices;
-  const price = closes[closes.length - 1][1];
-  const prev = closes.length > 1 ? closes[closes.length - 2][1] : null;
+  // At most ~200 points so every shell can draw it; always keep the latest point.
+  const step = Math.ceil(j.prices.length / 200);
+  const closes = j.prices.filter((_, i, a) => i % step === 0 || i === a.length - 1);
+  const last = closes[closes.length - 1];
+  const price = last[1];
+  // 24h change from the point nearest 24 hours before the latest one (works for daily and intraday series).
+  const dayAgo = [...closes].reverse().find(([t]) => t <= last[0] - 86_400_000 + 30 * 60_000);
+  const prev = dayAgo ? dayAgo[1] : null;
   const vals = closes.map((c) => c[1]);
   return {
     symbol,

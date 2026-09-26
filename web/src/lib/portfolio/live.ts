@@ -58,27 +58,41 @@ export function fetchPriceHistory(symbol: string, days = 30): Promise<PriceHisto
 }
 
 /** "paint app with eth chart": real daily closes for the token the prompt names (default ETH). */
-export function priceChartBundle(base: Bundle, h: PriceHistory): Bundle {
-  const day = (t: number) => new Date(t).toISOString().slice(5, 10);
+export function priceChartBundle(base: Bundle, h: PriceHistory, requested?: number): Bundle {
+  // Sub-day windows ("last 12 hours"): the source's smallest range is 1 day, so trim to what was asked.
+  if (requested !== undefined && requested < h.days) {
+    const end = h.closes[h.closes.length - 1][0];
+    const closes = h.closes.filter(([t]) => t >= end - requested * 86_400_000);
+    if (closes.length >= 2) {
+      const vals = closes.map(([, v]) => v);
+      h = { ...h, days: requested, closes, changeWindow: ((h.price - closes[0][1]) / closes[0][1]) * 100, high: Math.max(...vals), low: Math.min(...vals) };
+    }
+  }
+  const intraday = h.days < 7;
+  const hours = Math.round(h.days * 24);
+  const day = (t: number) => (intraday ? new Date(t).toISOString().slice(5, 16).replace("T", " ") : new Date(t).toISOString().slice(5, 10));
+  const span = h.days < 2 ? `${hours} hours` : `${Math.round(h.days)} days`;
+  // Asked for more than the free data source serves ("all time"): say what's shown instead of pretending.
+  const capped = requested !== undefined && requested > h.days ? ` · showing the most recent ${h.days} days (data limit)` : "";
   const rows = h.closes.map(([t, v], i) => ({ date: day(t), close: r2p(v), change: i ? +(((v - h.closes[i - 1][1]) / h.closes[i - 1][1]) * 100).toFixed(2) : 0 }));
   return {
     ...base,
     title: `${h.symbol} price · live`,
-    subtitle: `${usd(h.price)} · ${pct(h.changeWindow)} in ${h.days}d · ${h.source}`,
-    series: { label: `${h.symbol} daily close, last ${h.days} days`, unit: "usd", points: h.closes.map(([, v]) => r2p(v)) },
-    gauge: { value: Math.max(0, Math.min(1, 0.5 + h.changeWindow / 100)), label: `${h.symbol} ${pct(h.changeWindow)} (${h.days}d)`, caption: `High ${usd(h.high)} · Low ${usd(h.low)}` },
+    subtitle: `${usd(h.price)} · ${pct(h.changeWindow)} in ${span} · ${h.source}${capped}`,
+    series: { label: `${h.symbol} ${intraday ? "price" : "daily close"}, last ${span}`, unit: "usd", points: h.closes.map(([, v]) => r2p(v)) },
+    gauge: { value: Math.max(0, Math.min(1, 0.5 + h.changeWindow / 100)), label: `${h.symbol} ${pct(h.changeWindow)} (${span})`, caption: `High ${usd(h.high)} · Low ${usd(h.low)}` },
     table: {
       columns: [
         { key: "date", label: "Date", fmt: "text" },
         { key: "close", label: "Close", fmt: "usd" },
-        { key: "change", label: "Day", fmt: "pct" },
+        { key: "change", label: intraday ? "Change" : "Day", fmt: "pct" },
       ],
       rows: [...rows].reverse(),
     },
     list: {
       items: [
         { icon: "coin", title: `${h.symbol} ${usd(h.price)}`, subtitle: h.change24h === null ? "" : `${pct(h.change24h)} today`, tone: (h.change24h ?? 0) >= 0 ? "up" : "down" },
-        { icon: "chart", title: `${pct(h.changeWindow)} over ${h.days} days`, subtitle: `High ${usd(h.high)} · Low ${usd(h.low)}`, tone: h.changeWindow >= 0 ? "up" : "down" },
+        { icon: "chart", title: `${pct(h.changeWindow)} over ${span}`, subtitle: `High ${usd(h.high)} · Low ${usd(h.low)}`, tone: h.changeWindow >= 0 ? "up" : "down" },
       ],
     },
   };
@@ -191,8 +205,9 @@ export async function liveBundleFor(app: AppManifest, base: Bundle): Promise<Bun
   }
   if (fn === "price_chart") {
     const symbol = app.params.tokens.find((t) => t !== "USDC") ?? app.params.tokens[0] ?? "ETH";
+    const want = app.params.days ?? 30;
     try {
-      return priceChartBundle(base, await fetchPriceHistory(symbol));
+      return priceChartBundle(base, await fetchPriceHistory(symbol, Math.min(365, Math.max(1, Math.ceil(want)))), want);
     } catch {
       return null;
     }

@@ -8,7 +8,8 @@ export const maxDuration = 30;
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const symbol = (url.searchParams.get("symbol") ?? "").trim().toUpperCase();
-  const days = Math.min(365, Math.max(2, Number(url.searchParams.get("days") ?? 30) || 30));
+  // CoinGecko's public API serves at most 365 days; under 7 days it returns hourly (or 5-minute) points.
+  const days = Math.min(365, Math.max(1, Math.ceil(Number(url.searchParams.get("days") ?? 30) || 30)));
   if (!/^[A-Z0-9]{2,12}$/.test(symbol)) return Response.json({ error: "expected a token symbol like ETH" }, { status: 400 });
   const rl = rateLimit(`prices:${clientKey(request)}`, 60, 60_000);
   if (!rl.ok) return tooMany(rl.retryAfterMs);

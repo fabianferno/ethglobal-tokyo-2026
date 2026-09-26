@@ -30,6 +30,13 @@ const SHELL_RULES: Rules<ShellKey> = [
   [/\b(weather|forecast|climate|sunny|storm|temperature|rain)\b/, "weather", 6],
   [/\b(notepad|diary|journal|notes?|text ?file|log)\b/, "notepad", 5],
   [/\b(3d|3-d|three.?d|hologram|holographic|wireframe|opengl|directx|isometric)\b/, "hologram", 6.5],
+  // The app named first wins: "weather app with an image of …" is Weather, not Paint (a picture is content, not the shell).
+  [/^\s*(?:an?\s+|open\s+)?(excel|spreadsheet)\b/, "excel", 9],
+  [/^\s*(?:an?\s+|open\s+)?(weather)\b/, "weather", 9],
+  [/^\s*(?:an?\s+|open\s+)?(notepad)\b/, "notepad", 9],
+  [/^\s*(?:an?\s+|open\s+)?(mine ?sweeper)\b/, "minesweeper", 9],
+  [/^\s*(?:an?\s+|open\s+)?(doom)\b/, "doom", 9],
+  [/^\s*(?:an?\s+|open\s+)?(hologram|3d)\b/, "hologram", 9],
   // NB: "app"/"window" removed — too generic, they used to mask gibberish as a "known" shell.
   [/\b(explorer|dashboard|control panel|file browser|my computer)\b/, "explorer", 1.5],
 ];

@@ -5,17 +5,21 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { BarChart } from "@/components/win99/Widgets";
 import { balloon } from "@/os/store";
 import type { ShellProps } from "./AppFrame";
+import { PictureStatus } from "./Picture";
 
 const PALETTE = ["#000000", "#808080", "#800000", "#808000", "#008000", "#008080", "#000080", "#800080", "#ffffff", "#c0c0c0", "#df2e28", "#f7d417", "#1f9a3a", "#22c6c6", "#2f63d8", "#9b2fd6"];
 const TOOLS = ["✎", "✐", "◢", "A", "□", "○", "◆", "⊕", "✂", "⌫"];
 
 /** MS Paint shell: a meme canvas composed from the Scene shape, plus real freehand drawing on top. */
-export function PaintShell({ bundle, preview }: ShellProps) {
+export function PaintShell({ app, bundle, preview, picture }: ShellProps) {
   const [color, setColor] = useState("#df2e28");
   const [strokes, setStrokes] = useState<{ c: string; d: string }[]>([]);
   const drawing = useRef<string | null>(null);
   const canvas = useRef<SVGSVGElement>(null);
   const scene = bundle.scene;
+  // A requested picture fills the canvas when it's the whole app; next to a chart or roast it's a sticker.
+  const fullPicture = !!picture && app.fn === "none";
+  const box = fullPicture ? { x: 0, y: 0, width: 640, height: 420 } : { x: 452, y: 64, width: 176, height: 132 };
 
   useLayoutEffect(() => {
     if (!canvas.current) return;
@@ -65,7 +69,7 @@ export function PaintShell({ bundle, preview }: ShellProps) {
             }}
             onPointerUp={() => (drawing.current = null)}
           >
-            {scene ? (
+            {fullPicture ? null : scene ? (
               <>
                 <rect width="640" height="420" fill="#fffdf2" />
                 <text className="p-head" x="320" y="58" textAnchor="middle" fontFamily="Impact, 'Arial Black', sans-serif" fontSize="44" fill="#fff" stroke="#000" strokeWidth="2.5" paintOrder="stroke">{scene.headline}</text>
@@ -133,6 +137,19 @@ export function PaintShell({ bundle, preview }: ShellProps) {
                 })}
               </>
             ) : null}
+            {picture &&
+              (picture.src ? (
+                <g>
+                  {!fullPicture && <rect x={box.x - 4} y={box.y - 4} width={box.width + 8} height={box.height + 8} fill="#fff" stroke="#000" strokeWidth="2" transform={`rotate(3 ${box.x + box.width / 2} ${box.y + box.height / 2})`} />}
+                  <image href={picture.src} {...box} preserveAspectRatio={fullPicture ? "xMidYMid meet" : "xMidYMid slice"} transform={fullPicture ? undefined : `rotate(3 ${box.x + box.width / 2} ${box.y + box.height / 2})`} />
+                </g>
+              ) : (
+                <foreignObject {...box}>
+                  <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#fffdf2", border: fullPicture ? "none" : "2px dashed #000" }}>
+                    <PictureStatus pic={picture} />
+                  </div>
+                </foreignObject>
+              ))}
             {strokes.map((s, i) => <path key={i} d={s.d} fill="none" stroke={s.c} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />)}
           </svg>
         </div>

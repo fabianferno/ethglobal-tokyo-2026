@@ -530,7 +530,7 @@ export const FUNCTIONS: Record<FnKey, FnDef> = {
     icon: "chart",
     slug: "chart",
     defaultShell: "excel",
-    blurb: (c) => `${tok(c, "ETH")} price over the last 30 days`,
+    blurb: (c) => `${tok(c, "ETH")} price over the last ${Math.min(365, Math.max(1, Math.ceil(c.params.days ?? 30)))} days`,
     build: (c) => {
       // Instant mock so the critical path stays LLM-free; the live route swaps in real closes
       // (same keys) for fn === "price_chart". Keys must match: series / gauge / table / list.
@@ -539,7 +539,8 @@ export const FUNCTIONS: Record<FnKey, FnDef> = {
       const r = rng(c.agent + sym);
       const dec = base < 1 ? 6 : 2;
       let p = base * (0.82 + r() * 0.12);
-      const closes = Array.from({ length: 30 }, () => {
+      const n = Math.min(365, Math.max(2, Math.ceil(c.params.days ?? 30)));
+      const closes = Array.from({ length: n }, () => {
         p = Math.max(base * 0.01, p * (1 + (r() - 0.47) * 0.06));
         return +p.toFixed(dec);
       });
@@ -547,13 +548,13 @@ export const FUNCTIONS: Record<FnKey, FnDef> = {
       const last = closes[closes.length - 1];
       const move = (last / first - 1) * 100;
       const rows = closes
-        .map((close, i) => ({ date: `T-${29 - i}d`, close, chg: +(((close - (closes[i - 1] ?? close)) / (closes[i - 1] ?? close)) * 100).toFixed(2) }))
+        .map((close, i) => ({ date: `T-${n - 1 - i}d`, close, chg: +(((close - (closes[i - 1] ?? close)) / (closes[i - 1] ?? close)) * 100).toFixed(2) }))
         .reverse();
       return {
         title: `${sym} Price Chart`,
-        subtitle: `${sym} · ${usd(last)} · ${pct(move)} 30d`,
-        series: { label: `${sym} daily close, last 30 days`, unit: "usd", points: closes },
-        gauge: { value: Math.max(0, Math.min(1, 0.5 + move / 100)), label: `30d ${pct(move)}`, caption: `${sym} ${usd(last)} · high ${usd(Math.max(...closes))} · low ${usd(Math.min(...closes))}` },
+        subtitle: `${sym} · ${usd(last)} · ${pct(move)} ${n}d`,
+        series: { label: `${sym} daily close, last ${n} days`, unit: "usd", points: closes },
+        gauge: { value: Math.max(0, Math.min(1, 0.5 + move / 100)), label: `${n}d ${pct(move)}`, caption: `${sym} ${usd(last)} · high ${usd(Math.max(...closes))} · low ${usd(Math.min(...closes))}` },
         table: {
           columns: [{ key: "date", label: "Date", fmt: "text" }, { key: "close", label: "Close", fmt: "usd" }, { key: "chg", label: "Day", fmt: "pct" }],
           rows,

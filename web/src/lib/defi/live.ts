@@ -52,7 +52,7 @@ export async function defiBundleFor(app: AppManifest, base: Bundle): Promise<Bun
     }
     if (fn === "market_mood") {
       const token = tokens.find((t) => t !== "USDC") ?? "ETH";
-      return moodBundle(base, await fetchPriceHistory(token, 30));
+      return moodBundle(base, await fetchPriceHistory(token, Math.min(365, Math.max(14, Math.ceil(app.params.days ?? 30)))));
     }
   } catch {
     return null;

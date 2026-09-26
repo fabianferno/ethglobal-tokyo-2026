@@ -8,6 +8,7 @@ import type { ConcreteShell } from "@/lib/intent/types";
 import { coinBySymbol, SUI_COIN } from "@/lib/sui/config";
 import poolDep from "@/lib/sui/pool-deployment.json";
 import { liveBundleFor } from "@/lib/portfolio/live";
+import { type AppPicture, PictureFrame, usePicture } from "./Picture";
 import { enhancePortfolioBundle } from "@/lib/sui/portfolio";
 import { fetchSuiBalances, getSuiAddress } from "@/lib/sui/session";
 import { SceneStrip } from "@/scenes/Scene";
@@ -24,7 +25,8 @@ import { NotepadShell } from "./Notepad";
 import { PaintShell } from "./Paint";
 import { WeatherShell } from "./Weather";
 
-export type ShellProps = { app: AppManifest; bundle: Bundle; preview?: boolean; run: (a: Action) => void };
+/** picture: a requested image ("with a picture of …"); only Paint draws it itself, other shells get a frame. */
+export type ShellProps = { app: AppManifest; bundle: Bundle; preview?: boolean; run: (a: Action) => void; picture?: AppPicture | null };
 
 const SHELLS: Record<ConcreteShell, (p: ShellProps) => React.ReactNode> = {
   excel: ExcelShell,
@@ -240,10 +242,13 @@ export function ShellView({ app, preview }: { app: AppManifest; preview?: boolea
   // the built-in shell stays the fallback.
   const generated = useGeneratedFor(app);
   const run = preview ? () => {} : (a: Action) => runAction(a, app);
-  const builtIn = <Shell app={app} bundle={bundle} preview={preview} run={run} />;
+  const picture = usePicture(app, !preview);
+  const paintsItself = app.shell === "paint" && !generated;
+  const builtIn = <Shell app={app} bundle={bundle} preview={preview} run={run} picture={picture} />;
   return (
     <>
       <SceneStrip kind={app.scene} height={preview ? 40 : 52} label={bundle.subtitle} />
+      {picture && !paintsItself && <PictureFrame pic={picture} preview={preview} />}
       <div className="grow" style={{ display: "flex", flexDirection: "column", marginTop: 3, minHeight: 0 }}>
         {generated ? <GeneratedShell key={generated.label} app={app} bundle={bundle} preview={preview} run={run} shell={generated} fallback={builtIn} /> : builtIn}
       </div>
