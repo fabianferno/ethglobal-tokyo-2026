@@ -11,14 +11,33 @@ function looksLikeKey(key: string | undefined): key is string {
   return k.length >= 12 && !/\.\.\.|your|xxx|placeholder|changeme|<|>/i.test(k);
 }
 
+/**
+ * Jev goes through Vercel AI Gateway (TypeSafe-compatible endpoint). A direct TypeSafe key
+ * still works as a fallback; with neither, the offline classifier answers.
+ */
+const GATEWAY_URL = "https://ai-gateway.vercel.sh/typesafe";
+
+function route(): { apiKey: string; baseURL?: string; model: string } | null {
+  if (process.env.NEXT_PUBLIC_USE_MOCK === "true") return null;
+  if (looksLikeKey(process.env.AI_GATEWAY_API_KEY)) {
+    return { apiKey: process.env.AI_GATEWAY_API_KEY, baseURL: GATEWAY_URL, model: process.env.JEV_MODEL || "typesafe-ai/jev" };
+  }
+  if (looksLikeKey(process.env.TYPESAFE_API_KEY)) {
+    return { apiKey: process.env.TYPESAFE_API_KEY, model: process.env.JEV_MODEL || "jev-latest" };
+  }
+  return null;
+}
+
 export function jevMode(): "online" | "offline" {
-  if (process.env.NEXT_PUBLIC_USE_MOCK === "true") return "offline";
-  return looksLikeKey(process.env.TYPESAFE_API_KEY) ? "online" : "offline";
+  return route() ? "online" : "offline";
 }
 
 function getClient() {
+  const r = route()!;
   client ??= new TypeSafeClient({
-    defaultModel: process.env.JEV_MODEL || "jev-latest",
+    apiKey: r.apiKey,
+    baseURL: r.baseURL,
+    defaultModel: r.model,
     // One fast attempt: a stale answer is worse than falling back to the offline classifier.
     retry: { maxRetries: 0 },
     timeout: 2500,

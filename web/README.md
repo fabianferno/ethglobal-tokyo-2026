@@ -1,6 +1,8 @@
 # AgentOS 99 — web
 
-Next.js 16 · React 19 · TypeScript · GSAP · `@typesafe-ai/sdk` (Jev). No UI framework — the Win99 kit is hand-written CSS.
+Next.js 16 · React 19 · TypeScript · GSAP · `@typesafe-ai/sdk` (Jev, routed through Vercel AI Gateway). No UI framework — the Win99 kit is hand-written CSS.
+
+Set `AI_GATEWAY_API_KEY` in `.env.local` to call Jev (`typesafe-ai/jev`) via `https://ai-gateway.vercel.sh/typesafe`. Without it, the offline classifier answers with the same output shape.
 
 ## How a prompt becomes an app
 

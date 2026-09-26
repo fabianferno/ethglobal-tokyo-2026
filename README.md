@@ -13,7 +13,7 @@ Type anything into Start → *"minesweeper but 20x leverage SUI futures"*, *"exc
 ```bash
 cd web
 pnpm install
-cp .env.example .env.local   # optional: add TYPESAFE_API_KEY to use Jev online
+cp .env.example .env.local   # optional: add AI_GATEWAY_API_KEY to use Jev online
 pnpm dev                      # http://localhost:3000
 ```
 
