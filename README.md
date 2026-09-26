@@ -6,7 +6,7 @@ Type anything into Start → *"minesweeper but 20x leverage SUI futures"*, *"exc
 
 - 📄 Product spec: [`docs/PRD.md`](docs/PRD.md)
 - 💻 App: [`web/`](web/) (Next.js 16)
-- 🏆 Tracks: Sui DeFi & Payments · ENSv2 · Curvegrid dashboard / AI agent · (optional) Intercepta
+- 🏆 Tracks: Sui DeFi & Payments · ENSv2 · Curvegrid Digital Asset Dashboard
 
 ## Quick start
 

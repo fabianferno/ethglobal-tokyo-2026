@@ -2,7 +2,7 @@
 
 > Working title. A fully hallucinated, Windows‑99‑styled operating system where every app is an agent with an ENS name and a Sui wallet, and every UI is composed in real time by Jev.
 
-ETHGlobal Tokyo 2026 · Tracks: **Sui DeFi & Payments** · **ENS (Best Use of ENSv2)** · **Curvegrid (Digital Asset Dashboard / AI Agent)** · optional **Intercepta (safe agent‑to‑agent payments)**
+ETHGlobal Tokyo 2026 · Tracks: **Sui DeFi & Payments** · **ENS (Best Use of ENSv2)** · **Curvegrid (Best Digital Asset Dashboard)**
 
 ---
 
@@ -79,7 +79,7 @@ Rules (from Jev docs + Shapeshift):
 
 | App | Purpose | Track |
 |---|---|---|
-| **Signing dialog (UAC)** | Only place a transaction can be approved. Shows decoded tx + Jev risk badges (+ Intercepta verdict). | Safety / Intercepta |
+| **Signing dialog (UAC)** | Only place a transaction can be approved. Shows decoded tx + Jev risk badges + AgentCap check. | Safety (Sui) |
 | **Task Manager** | Every agent as a process: wallet balance, spend/min, recent txs, End Process = revoke AgentCap. | Curvegrid dashboard |
 | **My Computer** | Each agent wallet is a "drive"; usage bar = allocation. | Curvegrid dashboard |
 | **Network Neighborhood** | Browse other people's published agents by ENS name. | ENS |
@@ -111,7 +111,6 @@ Rules (from Jev docs + Shapeshift):
 ### Curvegrid
 - MultiBaas indexes ENSv2 Sepolia registry/resolver events → app index + Task Manager feed.
 - Task Manager + My Computer = the **digital asset dashboard** (treasury, per‑agent allocation, actions needed).
-- Agents = **AI agent project** (policy‑aware transaction agents, agent‑to‑agent payments).
 
 ### Agent runtime
 - Agent keys server‑side, bounded by `AgentCap` on‑chain.
@@ -138,7 +137,7 @@ Rules (from Jev docs + Shapeshift):
 | M4 | Folders/workspaces, Save As → ENS name, Publish, local app index | ✅ done (localStorage, not on-chain) |
 | M5 | ENSv2 Sepolia: subname registry, text‑record manifests, EAC roles | ⬜ |
 | M6 | Sui: zkLogin, sponsored tx, `AgentVault` Move package, DeepBook DCA | ⬜ |
-| M7 | Agent runtime + Jev tick loop; MultiBaas indexing; Intercepta screen | ⬜ |
+| M7 | Agent runtime + Jev tick loop; MultiBaas indexing | ⬜ |
 | M8 | GSAP scene library (20+) + optional LLM animation upgrade | 🟡 7 scenes |
 
 ## 10. Risks / open questions

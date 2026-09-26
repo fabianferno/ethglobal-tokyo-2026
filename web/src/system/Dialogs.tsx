@@ -8,7 +8,7 @@ import { balloon, closeWindow, getOS, installApp, newFolder, resolveSign, update
 
 /**
  * The Signing dialog is fixed OS code — never composed, never generated. Apps can only PROPOSE;
- * this is the only surface that can approve. (Next: live Intercepta screen + AgentCap check.)
+ * this is the only surface that can approve. (Next: real AgentCap check against the on-chain policy.)
  */
 export function SignDialog({ tx, reqId, winId }: { tx: TxProposal; reqId: string; winId: string }) {
   const risk = tx.risk < 0.6 ? { label: "Low risk", cls: "ok" } : tx.risk < 1.4 ? { label: "Medium risk", cls: "warn" } : { label: "High risk", cls: "bad" };
