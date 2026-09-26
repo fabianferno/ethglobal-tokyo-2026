@@ -4,6 +4,8 @@ import { useSyncExternalStore } from "react";
 import type { IconName } from "@/components/win99/Icon";
 import { fakeDigest } from "@/lib/chain/mock";
 import { type AppManifest, newId } from "@/lib/compose/compose";
+import { PUBLISHED } from "@/lib/compose/registry";
+import { labelOf, ROOT, uniqueName } from "@/lib/ens/names";
 import type { TxProposal } from "@/lib/compose/shapes";
 
 export type SystemKey = "mycomputer" | "taskmgr" | "network" | "recycle" | "kit";
@@ -61,7 +63,7 @@ export type OSState = {
   hydrated: boolean;
 };
 
-const KEY = "agentos99:v1";
+const KEY = "suicaos:v1";
 
 const initial: OSState = { user: null, items: [], windows: [], z: 10, startOpen: false, bsod: null, balloon: null, activity: [], trash: [], hydrated: false };
 
@@ -118,14 +120,23 @@ function freeSlot(items: DesktopItem[], parent: string | null) {
   return { x: 8, y: 8 };
 }
 
+/** Is this ENS name already used by any local item or published app? (First come, first served.) */
+export function isTaken(ens: string, exceptItemId?: string) {
+  const s = getOS();
+  return (
+    s.items.some((i) => i.id !== exceptItemId && ((i.kind === "app" && i.app.ens === ens) || (i.kind === "folder" && i.ens === ens))) ||
+    PUBLISHED.some((p) => p.ens === ens)
+  );
+}
+
+/** A user is a wallet, not an ENS name; this handle is just a display name until wallet login lands. */
 export function login(user: string) {
-  const name = user.trim().toLowerCase().replace(/\s+/g, "") || "guest.eth";
-  const ens = name.endsWith(".eth") ? name : `${name}.eth`;
+  const handle = user.trim().toLowerCase().replace(/\.eth$/, "").replace(/[^a-z0-9-]/g, "") || "guest";
   set((s) => {
-    if (s.items.length && s.user === ens) return { user: ens };
+    if (s.items.length && s.user === handle) return { user: handle };
     const sys: DesktopItem[] = (["mycomputer", "network", "taskmgr", "recycle", "kit"] as SystemKey[]).map((k, i) => ({ id: `sys_${k}`, kind: "system", system: k, parent: null, x: 8, y: 8 + i * GRID_Y }));
-    const team: DesktopItem = { id: newId("fld"), kind: "folder", name: "team", ens: `team.${ens}`, parent: null, x: 8 + GRID_X, y: 8 };
-    return { user: ens, items: [...sys, team], windows: [], activity: [], trash: [] };
+    const team: DesktopItem = { id: newId("fld"), kind: "folder", name: "team", ens: `team.${ROOT}`, parent: null, x: 8 + GRID_X, y: 8 };
+    return { user: handle, items: [...sys, team], windows: [], activity: [], trash: [] };
   });
 }
 
@@ -136,8 +147,7 @@ export function logout() {
 export function installApp(app: AppManifest, parent: string | null = null): DesktopItem {
   const s = getOS();
   const folder = parent ? s.items.find((i) => i.id === parent && i.kind === "folder") : undefined;
-  const label = app.ens.split(".")[0];
-  const ens = folder && folder.kind === "folder" ? `${label}.${folder.ens}` : app.ens;
+  const ens = uniqueName(labelOf(app.ens), folder && folder.kind === "folder" ? folder.ens : ROOT, (n) => isTaken(n));
   const item: DesktopItem = { id: newId("itm"), kind: "app", app: { ...app, ens }, parent, ...freeSlot(s.items, parent) };
   set((st) => ({ items: [...st.items, item] }));
   return item;
@@ -152,8 +162,8 @@ export function updateApp(itemId: string, patch: Partial<AppManifest>) {
 
 export function newFolder(name: string) {
   const s = getOS();
-  const clean = name.toLowerCase().replace(/[^a-z0-9-]/g, "") || "folder";
-  const item: DesktopItem = { id: newId("fld"), kind: "folder", name: clean, ens: `${clean}.${s.user}`, parent: null, ...freeSlot(s.items, null) };
+  const ens = uniqueName(name || "folder", ROOT, (n) => isTaken(n));
+  const item: DesktopItem = { id: newId("fld"), kind: "folder", name: labelOf(ens), ens, parent: null, ...freeSlot(s.items, null) };
   set((st) => ({ items: [...st.items, item] }));
 }
 
@@ -161,7 +171,7 @@ export function moveItem(id: string, x: number, y: number) {
   set((s) => ({ items: s.items.map((i) => (i.id === id ? { ...i, x: Math.max(0, x), y: Math.max(0, y) } : i)) }));
 }
 
-/** Dropping an app on a folder re-roots its ENS name under the folder: grouptab.disha.eth → grouptab.team.disha.eth */
+/** Dropping an app on a folder re-roots its ENS name under the folder: grouptab.suica.eth → grouptab.team.suica.eth */
 export function moveIntoFolder(itemId: string, folderId: string | null) {
   set((s) => {
     const folder = folderId ? s.items.find((i) => i.id === folderId && i.kind === "folder") : null;
@@ -169,8 +179,7 @@ export function moveIntoFolder(itemId: string, folderId: string | null) {
     return {
       items: s.items.map((i) => {
         if (i.id !== itemId || i.kind !== "app") return i;
-        const label = i.app.ens.split(".")[0];
-        const ens = folder && folder.kind === "folder" ? `${label}.${folder.ens}` : `${label}.${s.user}`;
+        const ens = uniqueName(labelOf(i.app.ens), folder && folder.kind === "folder" ? folder.ens : ROOT, (n) => isTaken(n, i.id));
         return { ...i, parent: folderId, ...slot, app: { ...i.app, ens } };
       }),
     };

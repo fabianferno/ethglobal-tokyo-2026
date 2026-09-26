@@ -86,7 +86,7 @@ export function OS() {
       {bsod && (
         <div className="bsod" onClick={clearBsod} onKeyDown={clearBsod} tabIndex={0} autoFocus>
           <div className="inner">
-            <p style={{ textAlign: "center" }}><span className="tag">AgentOS 99</span></p>
+            <p style={{ textAlign: "center" }}><span className="tag">Suica OS</span></p>
             <p>A fatal exception {bsod.code} has occurred in agent {bsod.agent}. The transaction was rejected by the AgentVault Move module and no funds moved.</p>
             {bsod.detail && <p>* {bsod.detail}</p>}
             <p>* The agent&apos;s AgentCap has been frozen pending owner review.<br />* Press any key to return to the desktop.</p>
@@ -99,20 +99,20 @@ export function OS() {
 }
 
 function Login() {
-  const [name, setName] = useState("disha.eth");
+  const [name, setName] = useState("disha");
   return (
     <div className="desktop" style={{ inset: 0, display: "grid", placeItems: "center" }}>
       <div className="window active" style={{ position: "relative", width: 460, minHeight: 0 }}>
         <div className="titlebar">
           <Icon name="logo" size={18} />
-          <span className="title">Welcome to AgentOS 99</span>
+          <span className="title">Welcome to Suica OS</span>
         </div>
         <div className="col" style={{ padding: 14, gap: 12 }}>
           <div className="row" style={{ gap: 14, alignItems: "flex-start" }}>
             <Icon name="logo" size={56} />
             <div className="col" style={{ gap: 4 }}>
-              <b style={{ fontSize: 16 }}>Log on with your ENS name</b>
-              <span className="muted">Every app you create becomes an agent under this name, with its own Sui wallet.</span>
+              <b style={{ fontSize: 16 }}>Log on</b>
+              <span className="muted">Every app you create becomes an agent with its own ENS name under suica.eth and its own Sui wallet.</span>
             </div>
           </div>
           <form

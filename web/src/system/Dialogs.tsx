@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Icon, type IconName } from "@/components/win99/Icon";
 import { type AppManifest, newId } from "@/lib/compose/compose";
 import type { TxProposal } from "@/lib/compose/shapes";
-import { balloon, closeWindow, getOS, installApp, newFolder, resolveSign, updateApp } from "@/os/store";
+import { cleanLabel, ROOT } from "@/lib/ens/names";
+import { balloon, closeWindow, getOS, installApp, isTaken, newFolder, resolveSign, updateApp } from "@/os/store";
 
 /**
  * The Signing dialog is fixed OS code — never composed, never generated. Apps can only PROPOSE;
@@ -82,14 +83,16 @@ export function SaveAsDialog({ app, winId }: { app: AppManifest; winId: string }
   const [label, setLabel] = useState(app.ens.split(".")[0]);
   const [parent, setParent] = useState<string>("");
   const folder = folders.find((f) => f.id === parent);
-  const root = folder && folder.kind === "folder" ? folder.ens : s.user;
-  const clean = label.toLowerCase().replace(/[^a-z0-9-]/g, "");
+  const root = folder && folder.kind === "folder" ? folder.ens : ROOT;
+  const clean = cleanLabel(label);
+  const existing = s.items.find((i) => i.kind === "app" && i.app.id === app.id);
+  const taken = isTaken(`${clean}.${root}`, existing?.id);
   const save = () => {
-    const existing = s.items.find((i) => i.kind === "app" && i.app.id === app.id);
+    if (taken) return;
     if (existing && existing.kind === "app" && existing.parent === (parent || null)) {
       updateApp(existing.id, { ens: `${clean}.${root}` });
     } else {
-      installApp({ ...app, id: newId(), ens: `${clean}.${root}`, owner: s.user!, published: false }, parent || null);
+      installApp({ ...app, id: newId(), ens: `${clean}.${ROOT}`, owner: s.user!, published: false }, parent || null);
     }
     balloon("Saved", `${clean}.${root} — subname registered (local; ENSv2 Sepolia next)`);
     closeWindow(winId);
@@ -108,10 +111,11 @@ export function SaveAsDialog({ app, winId }: { app: AppManifest; winId: string }
         <input className="field grow" value={label} autoFocus onChange={(e) => setLabel(e.target.value)} onKeyDown={(e) => e.key === "Enter" && clean && save()} />
       </label>
       <div className="sunken mono" style={{ padding: 6, background: "#fff" }}>{clean || "…"}.{root}</div>
+      {taken && <span className="down">⚠ {clean}.{root} is taken — first come, first served. Try another name.</span>}
       <div className="grow" />
       <div className="row" style={{ justifyContent: "flex-end" }}>
         <button className="btn" onClick={() => closeWindow(winId)}>Cancel</button>
-        <button className="btn primary" disabled={!clean} onClick={save}>Save</button>
+        <button className="btn primary" disabled={!clean || taken} onClick={save}>Save</button>
       </div>
     </div>
   );
@@ -119,10 +123,10 @@ export function SaveAsDialog({ app, winId }: { app: AppManifest; winId: string }
 
 export function NewFolderDialog({ winId }: { winId: string }) {
   const [name, setName] = useState("workspace");
-  const user = getOS().user;
-  const clean = name.toLowerCase().replace(/[^a-z0-9-]/g, "");
+  const clean = cleanLabel(name);
+  const taken = isTaken(`${clean}.${ROOT}`);
   const ok = () => {
-    if (!clean) return;
+    if (!clean || taken) return;
     newFolder(clean);
     closeWindow(winId);
   };
@@ -130,7 +134,8 @@ export function NewFolderDialog({ winId }: { winId: string }) {
     <div className="col grow" style={{ padding: 12, gap: 10 }}>
       <span>A folder is a workspace: a parent ENS name with a shared treasury and spend policy.</span>
       <input className="field" autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && ok()} />
-      <div className="sunken mono" style={{ padding: 6, background: "#fff" }}>{clean || "…"}.{user}</div>
+      <div className="sunken mono" style={{ padding: 6, background: "#fff" }}>{clean || "…"}.{ROOT}</div>
+      {taken && <span className="down">⚠ {clean}.{ROOT} is taken — try another name.</span>}
       <div className="row" style={{ justifyContent: "flex-end" }}>
         <button className="btn" onClick={() => closeWindow(winId)}>Cancel</button>
         <button className="btn primary" onClick={ok}>Create</button>

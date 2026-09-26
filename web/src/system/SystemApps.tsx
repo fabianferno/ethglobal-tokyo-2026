@@ -225,11 +225,11 @@ export function NetworkNeighborhood() {
     <div className="col grow" style={{ minHeight: 0 }}>
       <div className="row" style={{ padding: 4, gap: 6 }}>
         <span>Address</span>
-        <input className="field grow" placeholder="type an ENS name, e.g. kenji.eth" value={lookup} onChange={(e) => setLookup(e.target.value)} onKeyDown={(e) => {
+        <input className="field grow" placeholder="type an owner, e.g. kenji" value={lookup} onChange={(e) => setLookup(e.target.value)} onKeyDown={(e) => {
           if (e.key !== "Enter") return;
           const i = owners.findIndex(([o]) => o.includes(lookup.trim().toLowerCase()));
           if (i >= 0) setOwner(i);
-          else message("Network", "network", `No published agents found under ${lookup}.`);
+          else message("Network", "network", `No published agents found for ${lookup}.`);
         }} />
       </div>
       <div className="row grow" style={{ alignItems: "stretch", gap: 4, padding: 4, minHeight: 0 }}>

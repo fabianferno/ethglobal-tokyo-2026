@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AgentOS 99",
+  title: "Suica OS",
   description: "A fully hallucinated operating system where every app is an agent with an ENS name and a Sui wallet.",
 };
 

@@ -1,4 +1,4 @@
-# AgentOS 99 — web
+# Suica OS — web
 
 Next.js 16 · React 19 · TypeScript · GSAP · `@typesafe-ai/sdk` (Jev, routed through Vercel AI Gateway). No UI framework — the Win99 kit is hand-written CSS.
 
@@ -46,7 +46,7 @@ Start search keystroke
 
 ## Demo tips
 - `Ctrl+Esc` opens Start. Arrow keys + Enter pick a result.
-- Drag an app icon onto a folder → its ENS name re-roots under the folder (`grouptab.team.you.eth`).
+- Drag an app icon onto a folder → its ENS name re-roots under the folder (`grouptab.team.suica.eth`).
 - Task Manager → Options → *Simulate rogue agent* → BSOD.
 - `/?open=<ens>` opens a published agent after log-on (share links).
 

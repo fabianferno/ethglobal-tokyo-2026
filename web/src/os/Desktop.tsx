@@ -50,7 +50,7 @@ export function Desktop() {
     { label: "Task Manager", icon: "task", onClick: () => openSystem("taskmgr") },
     { label: "Refresh", onClick: () => balloon("Refreshed", `Re-resolved ${items.length} ENS names.`) },
     "sep",
-    { label: "Properties", icon: "settings", onClick: () => message("Display Properties", "computer", "AgentOS 99\nApps are agents. UI is composed by Jev in ~100ms.", `desktop @ ${x},${y}`) },
+    { label: "Properties", icon: "settings", onClick: () => message("Display Properties", "computer", "Suica OS\nApps are agents. UI is composed by Jev in ~100ms.", `desktop @ ${x},${y}`) },
   ];
 
   const iconMenu = (i: DesktopItem): MenuEntry[] => [

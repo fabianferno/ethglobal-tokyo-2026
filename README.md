@@ -1,4 +1,4 @@
-# AgentOS 99 — ETHGlobal Tokyo 2026
+# Suica OS — ETHGlobal Tokyo 2026
 
 A fully hallucinated, Windows‑99‑styled operating system where **every app is an agent** with an ENS name and a Sui wallet, and every UI is composed **in real time by Jev** (TypeSafe AI) — no LLM on the critical path.
 

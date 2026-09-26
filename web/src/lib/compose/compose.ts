@@ -1,4 +1,5 @@
 import type { IconName } from "@/components/win99/Icon";
+import { ROOT } from "@/lib/ens/names";
 import type { Params } from "@/lib/intent/parse";
 import type { ConcreteShell, FnKey, IntentResult, SceneKey, ShellKey, Vibe } from "@/lib/intent/types";
 import { FUNCTIONS } from "./functions";
@@ -111,10 +112,10 @@ export function draftManifest(opts: {
     published: false,
     description: "",
   };
-  const bundle = buildBundle({ ...draft, ens: `${slugBase}.${owner}` });
+  const bundle = buildBundle({ ...draft, ens: `${slugBase}.${ROOT}` });
   const shell = resolveShell(opts.combo?.shell ?? intent.shell.value, fn, bundle);
   const nick = shell === def.defaultShell || shell === "explorer" ? "" : SHELL_META[shell].nick;
-  const ens = `${nick ? `${slugBase}-${nick}` : slugBase}.${owner}`;
+  const ens = `${nick ? `${slugBase}-${nick}` : slugBase}.${ROOT}`;
   const title = shell === "explorer" ? def.label : `${SHELL_META[shell].label} · ${def.label}`;
   return {
     ...draft,

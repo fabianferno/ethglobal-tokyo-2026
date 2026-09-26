@@ -1,6 +1,6 @@
-# AgentOS 99 — PRD
+# Suica OS — PRD
 
-> Working title. A fully hallucinated, Windows‑99‑styled operating system where every app is an agent with an ENS name and a Sui wallet, and every UI is composed in real time by Jev.
+> A fully hallucinated, Windows‑99‑styled operating system where every app is an agent with an ENS name and a Sui wallet, and every UI is composed in real time by Jev.
 
 ETHGlobal Tokyo 2026 · Tracks: **Sui DeFi & Payments** · **ENS (Best Use of ENSv2)** · **Curvegrid (Best Digital Asset Dashboard)**
 
@@ -22,7 +22,7 @@ Type anything into the Start menu — *"minesweeper but leverage futures"*, *"ex
 |---|---|
 | **App = Agent** | Every app is an agent: an ENS (v2) name + a Sui wallet + a manifest + a policy. The UI is disposable; the identity and money persist. |
 | **Manifest** | ~1 KB of Jev answers + parsed params + roles + policy, stored in the agent's ENS text records. Anyone who resolves the name can rebuild the exact UI instantly — no model call. |
-| **Folder = Workspace** | A parent ENS name (`team.tokyo.eth`). Apps inside are subnames. The folder holds a shared treasury and spend policy that its apps inherit. |
+| **Folder = Workspace** | A parent ENS name (`team.suica.eth`). Apps inside are subnames. The folder holds a shared treasury and spend policy that its apps inherit. |
 | **Shell × Function × Target** | Every prompt decomposes into a familiar Win99 app (**shell**), a crypto capability (**function**), whose data (**target**, e.g. an ENS name) and a **vibe**. 40 shells × 30 functions ≈ 1,200 apps from one classifier call. |
 | **Data shapes** | Functions output one of 6 shapes (Table, TimeSeries, List, RiskyGrid, Gauge, Scene). Shells declare which shapes they render. Adapters connect them, so any compatible shell × function works without bespoke code. |
 | **Publish / Use / Remix** | Published apps show up in everyone's Start‑menu search. Opening someone else's app gives you your role's view. "Save As…" forks it under your name. |
@@ -90,7 +90,11 @@ Rules (from Jev docs + Shapeshift):
 ## 7. On‑chain design
 
 ### ENS v2 (Sepolia) — central, not cosmetic
-- **Subname registry per user/folder:** `disha.eth` → `team.disha.eth` (folder) → `grouptab.team.disha.eth` (app/agent).
+- **Names are for apps and folders only — users are wallets, not names.** The OS owns `suica.eth`:
+  - app/agent: `grouptab.suica.eth`
+  - folder/workspace: `team.suica.eth`, with its own subregistry
+  - app in a folder: `grouptab.team.suica.eth`
+- **First come, first served** under `suica.eth`; a folder owner controls everything inside their folder, so collisions only happen at the top level.
 - **Agent identity:** ENSIP‑25/26 agent text records hold the manifest pointer, agent wallet addresses (incl. Sui coin type), avatar/icon.
 - **Sharing = Enhanced Access Control roles:** owner / member / viewer roles on an app subname drive which view Jev composes.
 - **Permissioned resolver:** only the owner (or the folder's policy) can update the manifest; the agent itself can update status records.
@@ -121,9 +125,9 @@ Rules (from Jev docs + Shapeshift):
 
 1. Boot → zkLogin → Win99 desktop.
 2. Start → `excel of fabianferno.eth portfolio` → spreadsheet of a real ENS‑resolved portfolio appears as you type.
-3. Start → `paint but roast my portfolio` → meme with real numbers; "Send to…" shares `roast.disha.eth`.
+3. Start → `paint but roast my portfolio` → meme with real numbers; "Send to…" shares `roast.suica.eth`.
 4. Start → `minesweeper but leverage futures` → click a cell → Signing dialog → position opens; hit a mine → liquidation animation.
-5. Start → `split bills with friends` → published `grouptab.disha.eth` is Best Match → teammate opens it on their laptop and gets the member view → agent settles in one sponsored PTB.
+5. Start → `split bills with friends` → published `grouptab.suica.eth` is Best Match → teammate opens it on their laptop and gets the member view → agent settles in one sponsored PTB.
 6. Task Manager: live flows across all agents (Curvegrid). A rogue agent exceeds cap → Move rejects → BSOD.
 
 ## 9. Milestones

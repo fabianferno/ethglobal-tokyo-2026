@@ -8,7 +8,8 @@ import { PUBLISHED, shortlist, toCandidate } from "@/lib/compose/registry";
 import { paramChips, parse } from "@/lib/intent/parse";
 import { topK } from "@/lib/intent/types";
 import { ShellView } from "@/shells/AppFrame";
-import { getOS, installApp, logout, message, openApp, openSystem, type SystemKey, toggleStart, useOS } from "./store";
+import { labelOf, ROOT, uniqueName } from "@/lib/ens/names";
+import { getOS, installApp, isTaken, logout, message, openApp, openSystem, type SystemKey, toggleStart, useOS } from "./store";
 import { useIntent } from "./useIntent";
 
 type Entry =
@@ -75,7 +76,11 @@ export function StartMenu() {
       .slice(0, 4);
     const seen = new Set<string>();
     const create = topCombos(result, 4)
-      .map((combo) => ({ kind: "create" as const, app: draftManifest({ prompt: q, intent: result, params, owner: user, combo }), p: combo.p }))
+      .map((combo) => {
+        const draft = draftManifest({ prompt: q, intent: result, params, owner: user, combo });
+        // Show the name it will really get: first come, first served under suica.eth.
+        return { kind: "create" as const, app: { ...draft, ens: uniqueName(labelOf(draft.ens), ROOT, (n) => isTaken(n)) }, p: combo.p };
+      })
       .filter((e) => !seen.has(e.app.ens) && seen.add(e.app.ens))
       .slice(0, 3);
     // Best match first (only if Jev is confident), then Create new, then the rest of the published apps.
@@ -106,14 +111,14 @@ export function StartMenu() {
   return (
     <div ref={root} className="start-menu raised" role="menu" onKeyDown={(e) => e.key === "Escape" && toggleStart(false)}>
       <div className="start-banner">
-        Agent<b>OS</b> 99
+        Suica<b>OS</b>
       </div>
       <div className="col" style={{ width: 330, flex: "none", gap: 0, padding: "4px 4px 4px 6px" }}>
         <div className="row" style={{ padding: "6px 4px 8px", gap: 10, borderBottom: "1px solid var(--shadow)", boxShadow: "0 1px 0 var(--hilite)" }}>
           <Icon name="agent" size={36} />
           <div>
             <b style={{ fontSize: 15 }}>{user}</b>
-            <div className="muted" style={{ fontSize: 11 }}>Sui Testnet · ENSv2 Sepolia</div>
+            <div className="muted" style={{ fontSize: 11 }}>apps live under suica.eth · Sui Testnet</div>
           </div>
         </div>
 
