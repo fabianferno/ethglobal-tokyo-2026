@@ -49,6 +49,30 @@ pnpm dev                      # http://localhost:3000
 
 Without a key the OS runs on an offline keyword classifier with the exact same output shape as Jev (HUD shows `jev-offline`); ENS falls back to a demo index. Log on with Google for real Sui; continue as guest for paper mode.
 
+## Sponsor code map
+
+The single line-of-code links in the [submission](ethglobal-submission.md) point at the one representative line per track; the fuller file list per sponsor is here.
+
+### Sui code
+- `AgentVault<T>` Move package — caps, `agent_pay` (on-chain abort → BSOD): [`web/move/suica_vault/sources/vault.move`](web/move/suica_vault/sources/vault.move)
+- Mock AMM pool for real swaps/DCA/rebalance: [`web/move/suica_pool/`](web/move/suica_pool)
+- zkLogin + sponsored-tx routes: [`web/src/app/api/sui/zklogin/`](web/src/app/api/sui/zklogin) · [`sponsor/route.ts`](web/src/app/api/sui/sponsor/route.ts) · [`execute/route.ts`](web/src/app/api/sui/execute/route.ts)
+- Payroll PTB (atomic batch, over-budget reverts): [`web/src/app/api/sui/vault/payroll/route.ts`](web/src/app/api/sui/vault/payroll/route.ts)
+- Intent → tx builder (pay / vault_pay / swap): [`web/src/lib/sui/tx.ts`](web/src/lib/sui/tx.ts)
+- Fixed signing dialog (Move abort → BSOD): [`web/src/system/Dialogs.tsx`](web/src/system/Dialogs.tsx)
+- Deployment ids (testnet): [`web/src/lib/sui/deployment.json`](web/src/lib/sui/deployment.json)
+
+### ENSv2 code
+- Registry / resolver / EAC contracts + roles: [`web/src/lib/ens/contracts.ts`](web/src/lib/ens/contracts.ts)
+- On-chain minting, manifests, per-name resolvers, aliasing: [`web/src/lib/ens/onchain.ts`](web/src/lib/ens/onchain.ts)
+- Per-browser device key + EIP-191 signed requests: [`web/src/lib/ens/device.ts`](web/src/lib/ens/device.ts) · [`auth.ts`](web/src/lib/ens/auth.ts)
+- Mint / roles (EAC) / username routes: [`mint`](web/src/app/api/ens/mint/route.ts) · [`roles`](web/src/app/api/ens/roles/route.ts) · [`username`](web/src/app/api/ens/username/route.ts)
+- Deployed contract addresses: [`web/src/lib/ens/deployment.json`](web/src/lib/ens/deployment.json)
+
+### Curvegrid code
+- Dashboard UI (Task Manager + My Computer): [`web/src/system/SystemApps.tsx`](web/src/system/SystemApps.tsx)
+- Live on-chain AgentVault + AgentCap state feed: [`web/src/app/api/sui/vault/state/route.ts`](web/src/app/api/sui/vault/state/route.ts)
+
 ## Repo layout
 
 | Path | What |
