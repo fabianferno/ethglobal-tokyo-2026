@@ -81,18 +81,9 @@ _Alternates in [`docs/assets/screenshots/`](https://github.com/fabianferno/ethgl
 
 ## Sponsor tracks
 
-Base for code links: `https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/`
-
 ### 🟦 Sui — DeFi & Payments
 
-**Where in the code**
-- Move `AgentVault<T>` (caps, `agent_pay`, on-chain abort → BSOD): [`web/move/suica_vault/sources/vault.move`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/move/suica_vault/sources/vault.move)
-- Mock AMM pool for real swaps/DCA/rebalance: [`web/move/suica_pool/`](https://github.com/fabianferno/ethglobal-tokyo-2026/tree/main/web/move/suica_pool)
-- zkLogin + sponsored-tx routes: [`web/src/app/api/sui/zklogin/`](https://github.com/fabianferno/ethglobal-tokyo-2026/tree/main/web/src/app/api/sui/zklogin) · [`web/src/app/api/sui/sponsor/route.ts`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/app/api/sui/sponsor/route.ts) · [`web/src/app/api/sui/execute/route.ts`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/app/api/sui/execute/route.ts)
-- Payroll PTB (atomic batch, over-budget reverts): [`web/src/app/api/sui/vault/payroll/route.ts`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/app/api/sui/vault/payroll/route.ts)
-- Intent → tx builder (pay / vault_pay / swap): [`web/src/lib/sui/tx.ts`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/lib/sui/tx.ts)
-- Fixed signing dialog (Move abort → BSOD): [`web/src/system/Dialogs.tsx`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/system/Dialogs.tsx)
-- Deployment ids (testnet): [`web/src/lib/sui/deployment.json`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/lib/sui/deployment.json)
+**Line of code:** https://github.com/fabianferno/ethglobal-tokyo-2026/blob/070efd74560f766e3d35f2c0697439af462bc873/web/move/suica_vault/sources/vault.move#L94 — `agent_pay` in the `AgentVault` Move package: the capped, on-chain agent payment. Any over-cap call aborts here (→ BSOD). The surrounding file plus `web/src/app/api/sui/*` (zkLogin, sponsor, execute, payroll) and `web/src/lib/sui/tx.ts` are the rest of the Sui integration.
 
 **Why it's valid for Sui.** Real payments, on-chain: a published Move `AgentVault` package on testnet (packageId `0xc0bcd072…f34587`); **zkLogin login + Enoki-sponsored, gasless transactions verified end-to-end on-chain** (the sponsor paid gas, the sender only paid the transfer). Three advanced DeFi flows are real and gasless — **Programmable Payroll** (one PTB, atomic cap enforcement), **Rebalancer** and **DCA** (real SUI→SUSD swaps through our own deployed AMM pool, since DeepBook testnet is empty) — plus the safety story: an over-cap `agent_pay` **aborts on-chain** (abort code 2) and surfaces as a BSOD, so agent authority is enforced by Move, not by the UI.
 
@@ -100,12 +91,7 @@ Base for code links: `https://github.com/fabianferno/ethglobal-tokyo-2026/blob/m
 
 ### 🟩 ENS — Best Use of ENSv2 (Sepolia)
 
-**Where in the code**
-- Registry/resolver/EAC contracts + roles: [`web/src/lib/ens/contracts.ts`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/lib/ens/contracts.ts)
-- On-chain minting, manifests, per-name resolvers, aliasing: [`web/src/lib/ens/onchain.ts`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/lib/ens/onchain.ts)
-- Per-browser device key + EIP-191 signed requests: [`web/src/lib/ens/device.ts`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/lib/ens/device.ts) · [`web/src/lib/ens/auth.ts`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/lib/ens/auth.ts)
-- Mint / roles (EAC) / username routes: [`web/src/app/api/ens/mint/route.ts`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/app/api/ens/mint/route.ts) · [`web/src/app/api/ens/roles/route.ts`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/app/api/ens/roles/route.ts) · [`web/src/app/api/ens/username/route.ts`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/app/api/ens/username/route.ts)
-- Deployed contract addresses: [`web/src/lib/ens/deployment.json`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/lib/ens/deployment.json)
+**Line of code:** https://github.com/fabianferno/ethglobal-tokyo-2026/blob/070efd74560f766e3d35f2c0697439af462bc873/web/src/lib/ens/onchain.ts#L178 — `mintApp` registers an app as an ENSv2 subname under `suica.eth` with its own resolver + EAC roles. The same file holds folder minting, per-name PermissionedResolvers, manifest text records and aliasing; EAC role grants/revokes live in `web/src/app/api/ens/roles/route.ts`.
 
 **Why it's valid for ENSv2.** ENS is the product, not a label. We use ENSv2 as a real filesystem on Sepolia: **subname registries as folders**, **Enhanced Access Control roles as sharing** (member/manager, EIP-191 device-key signed, enforced on-chain — verified 9/9 in a two-key sharing test), **per-name PermissionedResolvers** (creator holds root roles; server keeps only scoped setter roles then revokes root), **manifests in text records** (any resolver can rebuild the UI with no model call), **non-transferable usernames** at `users.suica.eth`, and **ENSv2 aliasing as symlinks** — moving an app re-mints it and the old name resolves to the new record, so old share links still open. The app index is read straight from `LabelRegistered` events.
 
@@ -113,9 +99,7 @@ Base for code links: `https://github.com/fabianferno/ethglobal-tokyo-2026/blob/m
 
 ### 🟨 Curvegrid — Best Digital Asset Dashboard
 
-**Where in the code**
-- Task Manager + My Computer (the dashboard): [`web/src/system/SystemApps.tsx`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/system/SystemApps.tsx)
-- Live on-chain AgentVault + AgentCap state feed: [`web/src/app/api/sui/vault/state/route.ts`](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/web/src/app/api/sui/vault/state/route.ts)
+**Line of code:** https://github.com/fabianferno/ethglobal-tokyo-2026/blob/070efd74560f766e3d35f2c0697439af462bc873/web/src/app/api/sui/vault/state/route.ts#L15 — reads the live AgentVault + AgentCap on-chain (balance, caps, spent-today) to power the dashboard. The dashboard UI that renders it (Task Manager + My Computer) is in `web/src/system/SystemApps.tsx`.
 
 **Why it's valid.** Our **digital-asset dashboard** is the OS itself: **Task Manager** renders every agent as a process (wallet balance, spend rate, recent txs, "End Process" = revoke its AgentCap), and **My Computer** shows the live **AgentVault as a drive** with a real balance and a day-cap usage bar, reading real on-chain state (funds, fee_bps, per-tx/day caps, spent-today) every 15s. It's a treasury-and-permissions view of many agents at once — allocation, spend, and the actions that need a human — presented in a form anyone already understands.
 
