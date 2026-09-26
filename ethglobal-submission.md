@@ -43,7 +43,7 @@ _The nitty-gritty. What technologies did you use? How are they pieced together?_
 
 **Generated shells run as an untrusted guest.** When a prompt names a program we don't have, an LLM (via the AI Gateway) writes an HTML shell once, in the background. It's statically checked, smoke-tested in a hidden sandbox, then stored on **Walrus** with its sha256 and named at `<label>.shells.suica.eth`. It runs in a `sandbox="allow-scripts"` iframe with a no-network CSP — data is pushed in, and the only way out is proposing an action the trusted code already built.
 
-**The dashboard (Curvegrid track).** Task Manager shows every agent as a process with real balances and "End Process = revoke AgentCap"; My Computer shows the live **AgentVault** as a drive with a real balance + day-cap usage bar, reading on-chain vault/cap state (funds, fee_bps, caps, spent_today) every 15s.
+**The dashboard (Curvegrid track).** Every agent's ENS name resolves (addr at Sui coin type 784) to its own `AgentVault` on Sui; `/api/sui/vault/agents` reads each vault + the AgentCap bounding it (funds, fee_bps, per-tx/day caps, spent_today) and the dashboard polls it every 15s. Task Manager lists every agent as a process with its real vault balance, day-cap usage and a code-side **"Action needed"** flag (near day cap, low funds, revoked); **End Process burns the AgentCap on-chain** (`vault::revoke`, signed by the app creator's device key). My Computer shows each wallet as a drive with the same live numbers.
 
 **Hacky bits worth noting:** we compile Move without a local Sui CLI by using a Dockerized `mysten/sui-tools` image with the framework vendored as a local sparse clone (the emulated container can't git-fetch); all tx-building/simulation/gRPC live server-side to dodge gRPC-web CORS (the browser only signs sponsored bytes and assembles the zkLogin signature); and the smoke-test iframe sits on-screen at 0.01 opacity because Chrome pauses rAF in hidden cross-origin frames.
 
@@ -107,11 +107,15 @@ _Alternates in [`docs/assets/screenshots/`](https://github.com/fabianferno/ethgl
 
 **Full code map:** [Curvegrid files in the README](https://github.com/fabianferno/ethglobal-tokyo-2026/blob/main/README.md#curvegrid-code) — the linked line reads the live AgentVault + AgentCap on-chain (balance, caps, spent-today) to power the dashboard.
 
-**Why it's valid.** Our **digital-asset dashboard** is the OS itself: **Task Manager** renders every agent as a process (wallet balance, spend rate, recent txs, "End Process" = revoke its AgentCap), and **My Computer** shows the live **AgentVault as a drive** with a real balance and a day-cap usage bar, reading real on-chain state (funds, fee_bps, per-tx/day caps, spent-today) every 15s. It's a treasury-and-permissions view of many agents at once — allocation, spend, and the actions that need a human — presented in a form anyone already understands.
+**Why it's valid.** Our **digital-asset dashboard** is the OS itself, and every number in it is read from chain. Each agent (an app) has an ENS name whose addr(784) record points at its own `AgentVault` on Sui; the dashboard resolves those names and reads each vault + AgentCap live.
+- **Task Manager — agents as processes.** Per agent: vault balance (SUI), spent today vs. the on-chain day cap, and an **"Action needed"** flag computed in code (⚠ near day cap at 80%, ⚠ low funds when the vault can't cover one capped payment, Revoked, or "Create wallet" for a minted agent without one). The footer totals SUI under management and how many agents need attention. **Performance** shows day-cap usage and allocation per agent.
+- **Operational decisions, not just charts.** *Create Sui wallet* creates a vault and writes it into the agent's ENS record. *Send agent payment* makes a real capped `agent_pay`. **End Process burns the agent's AgentCap on-chain** (`vault::revoke`; only the app's creator can sign it), so that agent can never spend again. *Simulate rogue agent* sends a real over-cap payment that Move aborts (code 2) → BSOD.
+- **My Computer** shows the same wallets as drives (the shared demo AgentVault is C:, plus the user's own zkLogin balance) with day-cap bars. Tappy, the OS assistant, flags two more thresholds as balloons: big 30-day losses (over $500 and −25%) and any over-cap payment Move rejected.
+- **Tested:** 11 Move unit tests cover every cap the dashboard displays (`web/move/suica_vault/tests/`, `pnpm sui:test`).
 
-**Note / honesty:** MultiBaas indexing of the ENSv2 Sepolia registry/resolver events (to power the EVM side of the dashboard) is designed and stubbed but **not yet wired** — the current dashboard reads Sui vault state directly over gRPC and the ENS index directly from Sepolia logs. If MultiBaas integration is required for this prize, treat this as in-progress rather than complete.
+MultiBaas was not used (it's optional for this prize); vault state is read directly from a Sui fullnode.
 
-**Feedback.** The "digital asset dashboard" framing is a great fit for a multi-agent treasury; a MultiBaas path that spans both an EVM chain (our ENSv2 Sepolia events) and a non-EVM chain (our Sui vault state) in one dashboard would have let us unify the two halves — right now we bridge them in app code.
+**Feedback.** The "digital asset dashboard" framing is a great fit for a multi-agent treasury. Our dashboard spans an EVM chain (ENSv2 names on Sepolia) and a non-EVM chain (Sui vaults), and we bridge the two in app code; a MultiBaas path that indexes both would have saved that work.
 
 ---
 

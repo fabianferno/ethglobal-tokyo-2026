@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/win99/Icon";
 import { MenuBar, ToolButton, Toolbar } from "@/components/win99/Menu";
-import { LineChart, ListView, Progress } from "@/components/win99/Widgets";
-import { rng, usd } from "@/lib/chain/mock";
+import { ListView, Progress } from "@/components/win99/Widgets";
 import type { AppManifest } from "@/lib/compose/compose";
 import { deviceAddress, signAction } from "@/lib/ens/device";
 import {
@@ -22,10 +21,79 @@ import {
 } from "@/os/store";
 import { dropTargetAt, endDrag, setDragOver, setGhost, useDragOver } from "@/os/dnd";
 
-/** Mock agent wallet balance — replaced by Sui RPC / MultiBaas reads. */
-export function agentBalance(ens: string) {
-  const r = rng(ens + ":bal");
-  return { usdc: Math.round(20 + r() * 1800), sui: Math.round(r() * 400), cap: 500 };
+/** An agent's real Sui wallet: the AgentVault its ENS name resolves to (addr 784) + its AgentCap. */
+type AgentWallet = { ens: string; vault: string; cap: string | null; funds: string; feeBps: number; perTxCap: string; perDayCap: string; spentToday: string };
+
+/** Poll real on-chain wallets for these agent names (15s). Names without a vault are absent from the map. */
+function useAgentWallets(names: string[]): Map<string, AgentWallet> | null {
+  const key = [...new Set(names)].sort().join(",");
+  const [m, setM] = useState<Map<string, AgentWallet> | null>(null);
+  const [bump, setBump] = useState(0);
+  useEffect(() => {
+    const again = () => setBump((b) => b + 1);
+    window.addEventListener("suica:wallets", again);
+    return () => window.removeEventListener("suica:wallets", again);
+  }, []);
+  useEffect(() => {
+    let ok = true;
+    const load = () =>
+      (key ? fetch(`/api/sui/vault/agents?ens=${encodeURIComponent(key)}`).then((r) => (r.ok ? r.json() : null)) : Promise.resolve({ wallets: [] }))
+        .then((j) => ok && j?.wallets && setM(new Map((j.wallets as AgentWallet[]).map((w) => [w.ens, w]))))
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 15_000);
+    return () => {
+      ok = false;
+      clearInterval(id);
+    };
+  }, [key, bump]);
+  return m;
+}
+const refreshWallets = () => window.dispatchEvent(new Event("suica:wallets"));
+
+const sui = (x: string) => Number(BigInt(x)) / 1e9;
+
+/** Code-side attention flags — the "actions needed" column of the dashboard. */
+function walletFlag(w: Pick<AgentWallet, "cap" | "funds" | "perTxCap" | "perDayCap" | "spentToday"> | undefined): string {
+  if (!w) return "—";
+  if (!w.cap) return "Revoked";
+  const day = sui(w.perDayCap);
+  if (day > 0 && sui(w.spentToday) / day >= 0.8) return "⚠ Near day cap";
+  if (BigInt(w.funds) < BigInt(w.perTxCap)) return "⚠ Low funds — top up";
+  return "OK";
+}
+const needsAction = (flag: string) => flag.startsWith("⚠");
+
+/** Give an on-chain app a real Sui wallet (AgentVault + AgentCap), written into its ENS addr(784). */
+async function createWallet(ens: string) {
+  balloon("Creating Sui wallet…", `AgentVault for ${ens} · Sui testnet`);
+  try {
+    const res = await fetch("/api/sui/vault/create", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ens }) });
+    const j = await res.json();
+    if (!res.ok) return balloon("Wallet not created", j.error ?? "unknown error");
+    balloon("Sui wallet created", `${ens} → vault ${String(j.vaultId).slice(0, 10)}…${j.ensWritten ? " · written to ENS" : ` · ENS not updated: ${j.ensError ?? ""}`}`);
+    refreshWallets();
+  } catch (e) {
+    balloon("Wallet not created", (e as Error).message);
+  }
+}
+
+/** End Process: burn the agent's AgentCap on Sui (signed by this device, checked against the app's creator). */
+async function revokeAgent(ens: string): Promise<boolean> {
+  try {
+    const res = await fetch("/api/sui/vault/revoke", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ens, auth: await signAction("revoke", ens) }) });
+    const j = await res.json();
+    if (!res.ok) {
+      balloon("Couldn't end process", j.error ?? "unknown error");
+      return false;
+    }
+    balloon("Process ended", j.revoked ? `AgentCap for ${ens} burned on Sui.\n${String(j.digest).slice(0, 16)}…` : `${ens}: ${j.reason}.`);
+    refreshWallets();
+    return true;
+  } catch (e) {
+    balloon("Couldn't end process", (e as Error).message);
+    return false;
+  }
 }
 
 /**
@@ -79,21 +147,28 @@ export function TaskManager() {
   const activity = useOS((s) => s.activity);
   const [tab, setTab] = useState(0);
   const [sel, setSel] = useState<number | undefined>();
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
+  const [busy, setBusy] = useState(false);
+  const demo = useVaultState();
+  const wallets = useAgentWallets(apps.map((a) => a.app.ens));
 
-  const total = apps.reduce((a, x) => a + agentBalance(x.app.ens).usdc, 0);
-  const spendSeries = useMemo(() => {
-    const r = rng(String(activity.length));
-    return Array.from({ length: 40 }, (_, i) => 10 + r() * 30 + (i > 34 ? activity.length * 4 : 0));
-    // tick drives the "live" wobble
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activity.length, tick]);
-
-  const selected = sel !== undefined ? apps[sel] : undefined;
+  // Every row is real: the shared demo AgentVault first, then each agent's own vault (or none yet).
+  type Row = { key: string; ens: string; chain: string; fn: string; status: string; w?: Pick<AgentWallet, "cap" | "funds" | "perTxCap" | "perDayCap" | "spentToday">; app?: (typeof apps)[number] };
+  const rows: Row[] = [
+    ...(demo ? [{ key: "demo", ens: "AgentVault (demo)", chain: "Sui", fn: "agent_pay", status: "Running", w: { ...demo, cap: demo.cap } }] : []),
+    ...apps.map((a) => ({
+      key: a.id,
+      ens: a.app.ens,
+      chain: a.chain?.status === "onchain" ? "⛓ minted" : a.chain?.status === "minting" ? "… minting" : a.chain?.status === "failed" ? "✕ failed" : "local",
+      fn: a.app.fn,
+      status: a.app.readOnly ? "Watching" : "Running",
+      w: wallets?.get(a.app.ens),
+      app: a,
+    })),
+  ];
+  const live = rows.filter((r) => r.w);
+  const total = live.reduce((a, r) => a + sui(r.w!.funds), 0);
+  const flagged = rows.filter((r) => needsAction(walletFlag(r.w))).length;
+  const selected = sel !== undefined ? rows[sel] : undefined;
 
   return (
     <div className="col grow" style={{ padding: 4, minHeight: 0 }}>
@@ -111,7 +186,7 @@ export function TaskManager() {
               {
                 label: "Simulate rogue agent",
                 icon: "bomb",
-                onClick: () => void simulateRogue(selected?.app.ens ?? apps[0]?.app.ens ?? "rogue.agent.eth"),
+                onClick: () => void simulateRogue(selected?.app?.app.ens ?? apps[0]?.app.ens ?? "rogue.agent.eth"),
               },
             ],
           },
@@ -134,26 +209,41 @@ export function TaskManager() {
                   { key: "chain", label: "ENS" },
                   { key: "fn", label: "Function" },
                   { key: "status", label: "Status" },
-                  { key: "usdc", label: "USDC", fmt: "usd" },
-                  { key: "sui", label: "SUI", fmt: "num" },
-                  { key: "cap", label: "Cap/day", fmt: "usd" },
+                  { key: "sui", label: "Vault SUI" },
+                  { key: "day", label: "Spent / day cap" },
+                  { key: "flag", label: "Action needed" },
                 ],
-                rows: apps.map((a) => {
-                  const b = agentBalance(a.app.ens);
-                  return { ens: a.app.ens, chain: a.chain?.status === "onchain" ? "⛓ minted" : a.chain?.status === "minting" ? "… minting" : a.chain?.status === "failed" ? "✕ failed" : "local", fn: a.app.fn, status: a.app.readOnly ? "Watching" : "Running", usdc: b.usdc, sui: b.sui, cap: b.cap };
-                }),
+                rows: rows.map((r) => ({
+                  ens: r.ens,
+                  chain: r.chain,
+                  fn: r.fn,
+                  status: r.status,
+                  sui: r.w ? sui(r.w.funds).toFixed(3) : wallets ? "no wallet" : "…",
+                  day: r.w ? `${sui(r.w.spentToday).toFixed(3)} / ${sui(r.w.perDayCap).toFixed(2)}` : "—",
+                  flag: r.w ? walletFlag(r.w) : r.app?.chain?.status === "onchain" ? "Create wallet" : "—",
+                })),
               }}
             />
             <div className="row">
-              <span className="grow">{apps.length} agents · {usd(total)} under management</span>
-              <button className="btn" disabled={!selected} onClick={() => selected && openApp(selected.app)}>Switch To</button>
+              <span className="grow">
+                {rows.length} agents · {live.length} live on Sui · {total.toFixed(3)} SUI under management{flagged ? ` · ⚠ ${flagged} need attention` : ""}
+              </span>
+              <button className="btn" disabled={!selected?.app} onClick={() => selected?.app && openApp(selected.app.app)}>Switch To</button>
+              {selected?.app && !selected.w && selected.app.chain?.status === "onchain" && (
+                <button className="btn" disabled={busy} onClick={() => { setBusy(true); void createWallet(selected.ens).finally(() => setBusy(false)); }}>Create Sui wallet</button>
+              )}
               <button
                 className="btn danger"
-                disabled={!selected}
-                onClick={() => {
-                  if (!selected) return;
-                  trashItem(selected.id);
-                  balloon("Process ended", `AgentCap for ${selected.app.ens} revoked.`);
+                disabled={!selected?.app || busy}
+                onClick={async () => {
+                  const s = selected;
+                  if (!s?.app) return;
+                  setBusy(true);
+                  // Agents with a live AgentCap get it burned on-chain first; if that fails, the process keeps running.
+                  const ok = s.w?.cap ? await revokeAgent(s.ens) : (balloon("Process ended", `${s.ens} had no Sui wallet — nothing to revoke.`), true);
+                  setBusy(false);
+                  if (!ok) return;
+                  trashItem(s.app.id);
                   setSel(undefined);
                 }}
               >
@@ -165,23 +255,31 @@ export function TaskManager() {
         {tab === 1 && (
           <div className="col grow" style={{ gap: 8 }}>
             <div className="row" style={{ gap: 8, alignItems: "stretch" }}>
-              <Meter label="Treasury" value={usd(total)} />
-              <Meter label="Agents" value={String(apps.length)} />
-              <Meter label="Tx today" value={String(activity.filter((a) => a.status === "ok").length)} />
-              <Meter label="Blocked" value={String(activity.filter((a) => a.status !== "ok").length)} />
+              <Meter label="Treasury (SUI)" value={total.toFixed(3)} />
+              <Meter label="Live wallets" value={`${live.length}/${rows.length}`} />
+              <Meter label="Need attention" value={String(flagged)} />
+              <Meter label="Blocked tx" value={String(activity.filter((a) => a.status !== "ok").length)} />
             </div>
-            <b>Agent spend / min</b>
-            <div className="sunken" style={{ background: "#000", padding: 2 }}>
-              <LineChart points={spendSeries} height={130} color="#3aff6a" fill={false} />
+            <b>Day-cap usage by agent (on-chain AgentCap)</b>
+            <div className="col" style={{ gap: 4 }}>
+              {live.map((r) => (
+                <div key={r.key} className="row">
+                  <span style={{ width: 220, overflow: "hidden", textOverflow: "ellipsis" }}>{r.ens}</span>
+                  <Progress value={sui(r.w!.spentToday) / Math.max(1e-9, sui(r.w!.perDayCap))} width={260} />
+                  <span className="muted" style={{ fontSize: 11 }}>{walletFlag(r.w)}</span>
+                </div>
+              ))}
             </div>
             <b>Allocation by agent</b>
             <div className="col" style={{ gap: 4 }}>
-              {apps.slice(0, 6).map((a) => (
-                <div key={a.id} className="row">
-                  <span style={{ width: 220, overflow: "hidden", textOverflow: "ellipsis" }}>{a.app.ens}</span>
-                  <Progress value={agentBalance(a.app.ens).usdc / Math.max(1, total)} width={260} />
+              {live.map((r) => (
+                <div key={r.key} className="row">
+                  <span style={{ width: 220, overflow: "hidden", textOverflow: "ellipsis" }}>{r.ens}</span>
+                  <Progress value={sui(r.w!.funds) / Math.max(1e-9, total)} width={260} />
+                  <span className="muted" style={{ fontSize: 11 }}>{sui(r.w!.funds).toFixed(3)} SUI</span>
                 </div>
               ))}
+              {!live.length && <span className="muted">No live wallets yet — select a minted agent and press “Create Sui wallet”.</span>}
             </div>
           </div>
         )}
@@ -223,7 +321,24 @@ function Meter({ label, value }: { label: string; value: string }) {
 
 /* ── My Computer: every agent wallet is a drive ── */
 
-type VaultState = { funds: string; feeBps: number; perTxCap: string; perDayCap: string; spentToday: string; symbol: string; decimals: number; vault: string };
+type VaultState = { funds: string; feeBps: number; perTxCap: string; perDayCap: string; spentToday: string; symbol: string; decimals: number; vault: string; cap: string };
+
+/** The logged-in user's own SUI balance (zkLogin address). Null in guest mode or until loaded. */
+function useSuiBalance(address: string | null): number | null {
+  const [b, setB] = useState<{ address: string; sui: number } | null>(null);
+  useEffect(() => {
+    if (!address) return;
+    let ok = true;
+    fetch(`/api/sui/balances?address=${address}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => ok && j?.balances && setB({ address, sui: Number((j.balances as { symbol: string; amount: string | number }[]).find((x) => x.symbol === "SUI")?.amount ?? 0) }))
+      .catch(() => {});
+    return () => {
+      ok = false;
+    };
+  }, [address]);
+  return b && b.address === address ? b.sui : null;
+}
 
 /** Poll the deployed AgentVault's real on-chain state (Curvegrid dashboard). Null until it loads. */
 function useVaultState(): VaultState | null {
@@ -250,6 +365,9 @@ export function MyComputer() {
   const apps = useApps();
   const user = useOS((s) => s.user)!;
   const vault = useVaultState();
+  const wallets = useAgentWallets(apps.map((a) => a.app.ens));
+  const own = useSuiBalance(useOS((s) => s.suiAddress));
+  const liveCount = (vault ? 1 : 0) + (wallets?.size ?? 0);
   const drives = [{ ens: user, label: "Treasury", icon: "drive" as const }, ...apps.map((a) => ({ ens: a.app.ens, label: a.app.title, icon: a.app.icon, app: a.app }))];
   const letterBase = vault ? 68 : 67; // real vault takes C: when present
   return (
@@ -274,21 +392,25 @@ export function MyComputer() {
           </div>
         )}
         {drives.map((d, i) => {
-          const b = agentBalance(d.ens);
+          const w = "app" in d ? wallets?.get(d.ens) : undefined;
           const letter = String.fromCharCode(letterBase + i);
+          const line = !("app" in d)
+            ? own !== null ? `${own.toFixed(3)} SUI · your zkLogin wallet` : "Guest — sign in for a Sui wallet"
+            : w ? `${sui(w.funds).toFixed(3)} SUI · day ${sui(w.spentToday).toFixed(3)}/${sui(w.perDayCap).toFixed(2)} · ${walletFlag(w)}` : wallets ? "No Sui wallet yet" : "…";
+          const fill = w ? sui(w.spentToday) / Math.max(1e-9, sui(w.perDayCap)) : 0;
           return (
             <button key={d.ens} className="row" style={{ background: "none", border: "1px dotted transparent", padding: 6, textAlign: "left", cursor: "pointer" }} onDoubleClick={() => "app" in d && d.app && openApp(d.app)}>
               <Icon name={d.icon} size={40} />
               <div className="col" style={{ gap: 3, minWidth: 0 }}>
                 <b style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 170 }}>{d.label} ({letter}:)</b>
-                <Progress value={b.usdc / 2000} width={170} />
-                <span className="muted" style={{ fontSize: 11 }}>{usd(b.usdc)} USDC · {b.sui} SUI</span>
+                <Progress value={fill} width={170} />
+                <span className="muted" style={{ fontSize: 11 }}>{line}</span>
               </div>
             </button>
           );
         })}
       </div>
-      <div className="statusbar"><div>{drives.length + (vault ? 1 : 0)} wallet(s){vault ? " · 1 live on Sui" : ""}</div><div>Sui Testnet</div></div>
+      <div className="statusbar"><div>{drives.length + (vault ? 1 : 0)} wallet(s){liveCount ? ` · ${liveCount} live on Sui` : ""}</div><div>Sui Testnet</div></div>
     </div>
   );
 }
@@ -354,8 +476,9 @@ export function FolderView({ folderId }: { folderId: string }) {
   const folder = items.find((i) => i.id === folderId);
   const kids = items.filter((i) => i.parent === folderId);
   const dragOver = useDragOver(folderId);
+  const wallets = useAgentWallets(kids.flatMap((k) => (k.kind === "app" ? [k.app.ens] : [])));
   if (!folder || folder.kind !== "folder") return <div style={{ padding: 20 }}>Folder not found.</div>;
-  const b = agentBalance(folder.ens);
+  const treasury = [...(wallets?.values() ?? [])].reduce((a, w) => a + sui(w.funds), 0);
   return (
     <div className="col grow" style={{ minHeight: 0 }} data-drop={`folder:${folder.id}`}>
       <div className="row" style={{ padding: 4, gap: 6 }}>
@@ -368,10 +491,9 @@ export function FolderView({ folderId }: { folderId: string }) {
           <div style={{ fontWeight: 800, fontSize: 15, wordBreak: "break-all" }}>{folder.ens}</div>
           <hr style={{ border: 0, borderTop: "2px solid var(--select)" }} />
           <b>Treasury</b>
-          <div>{usd(b.usdc)} USDC</div>
+          <div>{wallets ? `${treasury.toFixed(3)} SUI · ${wallets.size} agent wallet(s)` : "…"}</div>
           <b style={{ display: "block", marginTop: 8 }}>Spend policy</b>
-          <div style={{ fontSize: 12 }}>Per agent: {b.cap} USDC/day</div>
-          <div style={{ fontSize: 12 }}>Allowed: DeepBook, Cetus, pay</div>
+          <div style={{ fontSize: 12 }}>New agents: 0.05 SUI/tx · 0.2 SUI/day (AgentCap, enforced by Move)</div>
           <FolderRoles ens={folder.ens} onchain={folder.chain?.status === "onchain"} user={user} />
         </aside>
         <div

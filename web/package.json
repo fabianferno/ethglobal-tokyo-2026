@@ -13,7 +13,8 @@
     "sui:faucet": "tsx scripts/sui-faucet.ts",
     "sui:build": "bash scripts/sui-build.sh",
     "sui:publish": "tsx scripts/sui-publish.ts",
-    "sui:smoke": "tsx scripts/sui-smoke.ts"
+    "sui:smoke": "tsx scripts/sui-smoke.ts",
+    "sui:test": "docker run --rm -v \"$PWD/move\":/work mysten/sui-tools:testnet sui move test --path /work/suica_vault"
   },
   "dependencies": {
     "@mysten/enoki": "^1.2.28",

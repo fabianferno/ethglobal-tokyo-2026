@@ -29,7 +29,7 @@ On every keystroke, one call to **Jev** answers ~20 typed questions (which shell
 | **Jev** (TypeSafe AI, via Vercel AI Gateway) | Real‑time UI composition; never writes text, only answers typed questions | — |
 | **ENSv2 on Sepolia** | `suica.eth` as a filesystem: subname registries = folders, EAC roles = sharing, text‑record manifests, per‑name PermissionedResolvers, non‑transferable usernames, aliasing = symlinks | ENS |
 | **Sui + Move** | `AgentVault<T>` + `AgentCap` (per‑tx/day caps → on‑chain abort → BSOD), Enoki zkLogin + sponsored gas, PTB payroll/settle‑up, a mock AMM pool for real DCA/rebalance swaps | Sui |
-| **Task Manager + My Computer** | Agents as processes; the AgentVault as a drive with a live day‑cap bar — a multi‑agent digital‑asset dashboard | Curvegrid |
+| **Task Manager + My Computer** | Agents as processes with their real Sui vault balances, day‑cap usage and "action needed" flags; End Process revokes the AgentCap on‑chain | Curvegrid |
 | **Walrus** | Storage for LLM‑generated shells (blob + sha256) | Sui |
 | **Mainnet ENS + Ethplorer** | Real read‑only portfolio data for any wallet (holdings, 24h/7d/30d, PnL) | — |
 
@@ -45,6 +45,7 @@ cd web
 pnpm install
 cp .env.example .env.local   # optional: add AI_GATEWAY_API_KEY to use Jev online
 pnpm dev                      # http://localhost:3000
+pnpm sui:test                 # AgentVault Move unit tests (needs Docker)
 ```
 
 Without a key the OS runs on an offline keyword classifier with the exact same output shape as Jev (HUD shows `jev-offline`); ENS falls back to a demo index. Log on with Google for real Sui; continue as guest for paper mode.
@@ -70,8 +71,10 @@ The single line-of-code links in the [submission](ethglobal-submission.md) point
 - Deployed contract addresses: [`web/src/lib/ens/deployment.json`](web/src/lib/ens/deployment.json)
 
 ### Curvegrid code
-- Dashboard UI (Task Manager + My Computer): [`web/src/system/SystemApps.tsx`](web/src/system/SystemApps.tsx)
-- Live on-chain AgentVault + AgentCap state feed: [`web/src/app/api/sui/vault/state/route.ts`](web/src/app/api/sui/vault/state/route.ts)
+- Dashboard UI (Task Manager + My Computer, "Action needed" flags): [`web/src/system/SystemApps.tsx`](web/src/system/SystemApps.tsx)
+- ENS name → addr(784) → AgentVault + AgentCap, read live: [`web/src/lib/sui/agents.ts`](web/src/lib/sui/agents.ts) · [`api/sui/vault/agents`](web/src/app/api/sui/vault/agents/route.ts) · demo vault [`api/sui/vault/state`](web/src/app/api/sui/vault/state/route.ts)
+- End Process = on-chain `vault::revoke` (creator-signed): [`api/sui/vault/revoke`](web/src/app/api/sui/vault/revoke/route.ts)
+- Move unit tests for every cap the dashboard shows (11 passing): [`web/move/suica_vault/tests/vault_tests.move`](web/move/suica_vault/tests/vault_tests.move) — run with `pnpm sui:test` (Docker, no local Sui CLI)
 
 ## Repo layout
 

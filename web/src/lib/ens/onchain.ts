@@ -223,6 +223,9 @@ export async function mintFolder(opts: { label: string; description?: string; ow
   return { ens, resolver, hashes };
 }
 
+/** True if `account` created the app `ens` (holds root text-admin on its sealed resolver). */
+export const isAppCreator = (ens: string, account: Address) => canAlias(ens, "", account);
+
 /** Point `ens` at its Sui vault: addr(784) = the vault's 32-byte object id. Works on sealed resolvers via the server's scoped role. */
 export async function setSuiVault(ens: string, vaultId: string) {
   if (!/^0x[0-9a-fA-F]{64}$/.test(vaultId)) throw new Error("vault id must be a 32-byte 0x hex object id");
