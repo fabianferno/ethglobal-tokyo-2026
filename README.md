@@ -2,11 +2,41 @@
 
 A fully hallucinated, Windows‑99‑styled operating system where **every app is an agent** with an ENS name and a Sui wallet, and every UI is composed **in real time by Jev** (TypeSafe AI) — no LLM on the critical path.
 
-Type anything into Start → *"minesweeper but 20x leverage SUI futures"*, *"excel of fabianferno.eth's portfolio"*, *"split bills with 4 friends"* — and a working agent app appears as you type.
+Type anything into Start → *"excel of vitalik.eth portfolio"*, *"paint but roast vitalik.eth"*, *"doom but I'm shooting my losses"*, *"split bills with 4 friends"*, *"tetris but my portfolio"* — and a working, on‑chain agent app appears as you type.
 
-- 📄 Product spec: [`docs/PRD.md`](docs/PRD.md)
-- 💻 App: [`web/`](web/) (Next.js 16)
-- 🏆 Tracks: Sui DeFi & Payments · ENSv2 · Curvegrid Digital Asset Dashboard
+- 🏆 Tracks: **Sui DeFi & Payments** · **ENS (Best Use of ENSv2, Sepolia)** · **Curvegrid (Best Digital Asset Dashboard)**
+- 📄 Product spec: [`docs/PRD.md`](docs/PRD.md) · Code map: [`web/README.md`](web/README.md) · Submission: [`ethglobal-submission.md`](ethglobal-submission.md)
+- 💻 App: [`web/`](web/) (Next.js 16 · React 19 · TypeScript)
+
+## The idea
+
+We're heading toward a future where agents do the work and we don't build apps anymore. But we still need interfaces — to *see* what our agents did, understand it, and approve or refuse it. So interfaces will be **generated on demand**, changing in real time and personal to whoever is using them. Suica OS is an experiment in that: an OS where every window is composed live, every app has an identity, and every dollar it moves is capped on‑chain.
+
+**Apps are places, not programs.** Every app is an agent: an **ENSv2 name** (identity + a ~1 KB manifest in its text records) and a **Sui wallet** (an `AgentVault` with spend caps). The UI is disposable — anyone who resolves the name rebuilds the exact UI instantly, no model call.
+
+## How a prompt becomes an app
+
+![Pipeline](docs/assets/suica-pipeline.png)
+
+On every keystroke, one call to **Jev** answers ~20 typed questions (which shell, which capability, what vibe, how risky) in ~70–500 ms. **Jev decides, code computes** — a deterministic parser extracts every number (ENS names, tokens, amounts), so a model never invents an amount. The app is composed from *shell × function × target*. Ask for a program we don't have and an LLM writes the shell in the background, sandboxed, then publishes it to Walrus at `shells.suica.eth`.
+
+## How the tech fits together
+
+![Architecture](docs/assets/suica-architecture.png)
+
+| Layer | What | Track |
+|---|---|---|
+| **Jev** (TypeSafe AI, via Vercel AI Gateway) | Real‑time UI composition; never writes text, only answers typed questions | — |
+| **ENSv2 on Sepolia** | `suica.eth` as a filesystem: subname registries = folders, EAC roles = sharing, text‑record manifests, per‑name PermissionedResolvers, non‑transferable usernames, aliasing = symlinks | ENS |
+| **Sui + Move** | `AgentVault<T>` + `AgentCap` (per‑tx/day caps → on‑chain abort → BSOD), Enoki zkLogin + sponsored gas, PTB payroll/settle‑up, a mock AMM pool for real DCA/rebalance swaps | Sui |
+| **Task Manager + My Computer** | Agents as processes; the AgentVault as a drive with a live day‑cap bar — a multi‑agent digital‑asset dashboard | Curvegrid |
+| **Walrus** | Storage for LLM‑generated shells (blob + sha256) | Sui |
+| **Mainnet ENS + Ethplorer** | Real read‑only portfolio data for any wallet (holdings, 24h/7d/30d, PnL) | — |
+
+## Proven on‑chain (testnet)
+
+- **Sui:** `AgentVault` Move package published to testnet; **zkLogin login + Enoki‑sponsored gasless transactions verified end‑to‑end** (sponsor pays gas). Over‑cap `agent_pay` **aborts on‑chain** (abort code 2 = EOverTxCap) → BSOD. Real gasless **Payroll** (atomic PTB batch), **Rebalancer** and **DCA** (SUI→SUSD swaps via our own deployed pool).
+- **ENSv2 (Sepolia):** `suica.eth` + our own UserRegistry/PermissionedResolver deployed; folders, EAC sharing (verified 9/9 with two device keys), per‑name resolvers, usernames, and app‑move aliasing all verified live.
 
 ## Quick start
 
@@ -17,4 +47,18 @@ cp .env.example .env.local   # optional: add AI_GATEWAY_API_KEY to use Jev onlin
 pnpm dev                      # http://localhost:3000
 ```
 
-Without a key the OS runs on an offline keyword classifier with the exact same output shape as Jev (HUD shows `jev-offline`).
+Without a key the OS runs on an offline keyword classifier with the exact same output shape as Jev (HUD shows `jev-offline`); ENS falls back to a demo index. Log on with Google for real Sui; continue as guest for paper mode.
+
+## Repo layout
+
+| Path | What |
+|---|---|
+| `web/src/os/`, `web/src/styles/win99.css` | The Windows‑99 OS shell, window manager, Start menu, Welcome (landing page) |
+| `web/src/lib/intent/`, `web/src/lib/compose/` | Jev question schema + parser; data shapes, functions, composer |
+| `web/src/shells/` | Excel, Minesweeper, Paint, Weather, Notepad, Explorer, Doom, Hologram, generated shells |
+| `web/src/lib/ens/`, `web/src/app/api/ens/` | ENSv2 minting, EAC roles, per‑name resolvers, usernames, aliasing |
+| `web/src/lib/sui/`, `web/src/app/api/sui/`, `web/move/` | zkLogin, sponsored tx, `AgentVault`/pool Move packages, payroll/swap |
+| `web/src/system/` | Fixed OS surfaces: signing dialog, Task Manager, My Computer, BSOD |
+| `web/src/assistant/`, `web/src/lib/genshell/` | Tappy (the OS agent); LLM‑generated shell pipeline |
+
+Built at ETHGlobal Tokyo 2026. "Windows 99" is a parody UI kit; the assistant is an original character.
