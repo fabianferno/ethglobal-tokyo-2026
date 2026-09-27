@@ -235,7 +235,9 @@ function useLiveBundle(app: AppManifest, preview?: boolean): Bundle {
 }
 
 export function ShellView({ app, preview }: { app: AppManifest; preview?: boolean }) {
-  const bundle = useLiveBundle(app, preview);
+  const live = useLiveBundle(app, preview);
+  // A picture-only app ("draw a cat") is titled by its picture, not the blank app's "Describe what it should do".
+  const bundle = app.fn === "none" && app.params.image ? { ...live, title: app.params.image, subtitle: app.params.image, list: undefined } : live;
   // A chain manifest can name a shell this build doesn't have (renamed/newer) — fall back to Explorer.
   const Shell = SHELLS[app.shell] ?? ExplorerShell;
   // "tetris but …": once TETRIS.EXE is installed (LLM-generated, sandboxed), it renders instead;

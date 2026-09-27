@@ -1,6 +1,7 @@
 import type { IconName } from "@/components/win99/Icon";
 import { ROOT } from "@/lib/ens/names";
 import { detectProgram } from "@/lib/genshell/detect";
+import { mockClassify } from "@/lib/intent/mock";
 import type { Params } from "@/lib/intent/parse";
 import type { ConcreteShell, FnKey, IntentResult, SceneKey, ShellKey, Vibe } from "@/lib/intent/types";
 import { FUNCTIONS } from "./functions";
@@ -117,7 +118,10 @@ export function draftManifest(opts: {
   combo?: Combo;
 }): AppManifest {
   const { prompt, intent, params, owner } = opts;
-  const fn = opts.combo?.fn ?? (intent.fn.value === "none" ? "none" : intent.fn.value);
+  // "paint app with a picture of a cat": only a picture, no money. Jev can over-read the subject ("roast",
+  // "portfolio"), so if the prompt minus the picture has no money signal at all, it's a picture app.
+  const pictureOnly = !!params.image && mockClassify(prompt.toLowerCase().replace(params.image.toLowerCase(), " ")).fn.value === "none";
+  const fn = pictureOnly ? "none" : (opts.combo?.fn ?? (intent.fn.value === "none" ? "none" : intent.fn.value));
   const target = params.ensNames[0] ?? params.addresses?.[0] ?? owner;
   // You can look at anyone's wallet, but an agent can only ever move the owner's money.
   const namedTarget = params.ensNames.length > 0 || (params.addresses?.length ?? 0) > 0;
@@ -126,7 +130,8 @@ export function draftManifest(opts: {
   const viewOnly = ["portfolio", "roast", "journal", "market_mood", "price_chart", "compare", "gas", "markets", "yield", "lp"].includes(fn);
   const readOnly = viewOnly && (target !== owner || (intent.signals.readOnly > 0.5 && namedTarget));
   const def = FUNCTIONS[fn];
-  const slugBase = def.slug;
+  const slugBase = pictureOnly ? "picture" : def.slug;
+  const label = pictureOnly ? "Picture" : def.label;
   const draft: AppManifest = {
     id: newId(),
     ens: "",
@@ -145,10 +150,11 @@ export function draftManifest(opts: {
     description: "",
   };
   const bundle = buildBundle({ ...draft, ens: `${slugBase}.${ROOT}` });
-  const shell = resolveShell(opts.combo?.shell ?? intent.shell.value, fn, bundle);
+  const askedShell = opts.combo?.shell ?? intent.shell.value;
+  const shell = resolveShell(pictureOnly && askedShell === "unspecified" ? "paint" : askedShell, fn, bundle);
   const nick = shell === def.defaultShell || shell === "explorer" ? "" : SHELL_META[shell].nick;
   const ens = `${nick ? `${slugBase}-${nick}` : slugBase}.${ROOT}`;
-  const title = shell === "explorer" ? def.label : `${SHELL_META[shell].label} · ${def.label}`;
+  const title = shell === "explorer" ? label : `${SHELL_META[shell].label} · ${label}`;
   // 0x addresses show as 0xd8dA…6045, not the full lowercased string; compare names both wallets.
   const shortAddr = (x: string) => (/^0x[a-f0-9]{40}/i.test(x) ? `${x.slice(0, 6)}…${x.slice(-4)}` : x);
   const named = [...params.ensNames, ...(params.addresses ?? [])];
@@ -159,6 +165,6 @@ export function draftManifest(opts: {
     shell,
     icon: shell === "explorer" ? def.icon : SHELL_META[shell].icon,
     title: target !== owner ? `${title} — ${targetLabel}` : title,
-    description: `${shell !== "explorer" ? SHELL_META[shell].label + " — " : ""}${def.blurb({ params, target, owner, agent: ens, vibe: draft.vibe, readOnly })}`,
+    description: `${shell !== "explorer" ? SHELL_META[shell].label + " — " : ""}${pictureOnly ? `A picture of ${params.image}` : def.blurb({ params, target, owner, agent: ens, vibe: draft.vibe, readOnly })}`,
   };
 }
