@@ -12,6 +12,7 @@ import { labelOf, ROOT, uniqueName } from "@/lib/ens/names";
 import { canonicalName, chargeSuica, getOS, installApp, isTaken, logout, message, openApp, openFolder, openSystem, openWindow, pinFolder, SYSTEM_APPS, type SystemKey, toggleStart, useOS } from "./store";
 import { type ActionKey, actionHits, BEST_MATCH, folderFor, rankPublished, showNotFound, systemHits } from "./searchRank";
 import { useIntent } from "./useIntent";
+import { TRY as WELCOME_TRY } from "./Welcome";
 import { openWelcome, takeStartQuery } from "./welcomeStore";
 
 type Entry =
@@ -21,16 +22,8 @@ type Entry =
   | { kind: "action"; key: ActionKey; label: string; icon: IconName; ens?: string }
   | { kind: "notfound"; text: string };
 
-const TRY = [
-  "microsoft excel but shows my portfolio at fabianferno.eth",
-  "paint app but roast my portfolio",
-  "minesweeper but it's 20x leverage SUI futures",
-  "split bills with 4 friends",
-  "savings circle 6 friends 50 usdc monthly",
-  "weather forecast for the SUI market",
-  "buy 10 USDC of SUI every day",
-  "notepad diary of vitalik.eth trades",
-];
+// Same prompts as the Welcome dialog's "Try it", minus the plain-function ones.
+const TRY = WELCOME_TRY.map((t) => t.q).filter((q) => !/^(split bills|gas tracker)/.test(q));
 
 const PINNED: { key: SystemKey; label: string; icon: IconName }[] = [
   { key: "mycomputer", label: "My Computer", icon: "computer" },
@@ -169,7 +162,7 @@ export function StartMenu() {
             <>
               <SectionLabel>Try typing</SectionLabel>
               <div className="col" style={{ gap: 4, padding: "0 6px" }}>
-                {TRY.slice(0, 5).map((t) => (
+                {TRY.map((t) => (
                   <button key={t} className="chip" style={{ justifyContent: "flex-start", height: "auto", minHeight: 22, borderRadius: 3, textAlign: "left" }} onClick={() => (setQ(t), setHot(0))}>
                     {t}
                   </button>

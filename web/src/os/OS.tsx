@@ -120,6 +120,11 @@ export function OS() {
         <div className="balloon" role="status">
           <b>{balloon.title}</b>
           <div style={{ whiteSpace: "pre-wrap", marginTop: 3 }}>{balloon.text}</div>
+          {balloon.link && (
+            <div style={{ marginTop: 6, textAlign: "right" }}>
+              <button onClick={() => window.open(balloon.link!.url, "_blank", "noopener")}>{balloon.link.label} ↗</button>
+            </div>
+          )}
         </div>
       )}
       {bsod && (

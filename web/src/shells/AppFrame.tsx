@@ -12,7 +12,7 @@ import { type AppPicture, PictureFrame, usePicture } from "./Picture";
 import { enhancePortfolioBundle } from "@/lib/sui/portfolio";
 import { fetchSuiBalances, getSuiAddress } from "@/lib/sui/session";
 import { SceneStrip } from "@/scenes/Scene";
-import { balloon, bsod, closeWindow, getOS, installApp, message, openApp, openWindow, propose, setPublished, updateApp, useOS } from "@/os/store";
+import { balloon, bsod, closeWindow, getOS, installApp, message, openApp, openWindow, propose, setPublished, suiscanLink, updateApp, useOS } from "@/os/store";
 import { DoomShell } from "./Doom";
 import { ExcelShell } from "./Excel";
 import { ExplorerShell } from "./Explorer";
@@ -149,7 +149,7 @@ async function runPayroll(app: AppManifest) {
   try {
     const res = await fetch("/api/sui/vault/payroll", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ recipients: resolved, amountSui: 0.005 }) });
     const j = await res.json();
-    if (res.ok && j.ok) return balloon("Payroll sent", `Paid ${j.paid} recipient${j.paid === 1 ? "" : "s"} ${j.amountSui} SUI each from the vault${j.usedDemoTeam ? " (demo team)" : ""}\n${String(j.digest).slice(0, 16)}…`);
+    if (res.ok && j.ok) return balloon("Payroll sent", `Paid ${j.paid} recipient${j.paid === 1 ? "" : "s"} ${j.amountSui} SUI each from the vault${j.usedDemoTeam ? " (demo team)" : ""}\n${String(j.digest).slice(0, 16)}…`, suiscanLink(String(j.digest)));
     if (j.aborted) return bsod("payroll.suica.eth", "AGENT_SPEND_LIMIT_EXCEEDED", `Payroll batch exceeded the AgentCap on-chain: abort code ${j.code} (${j.name}). The whole PTB reverted — no one was paid.`);
     balloon("Payroll failed", j.error ?? j.message ?? "unknown error");
   } catch (e) {

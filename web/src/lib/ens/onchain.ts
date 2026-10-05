@@ -93,12 +93,23 @@ export async function firstFreeLabel(label: string, parent: string) {
 
 type Tx = Parameters<ReturnType<typeof serverWallet>["writeContract"]>[0];
 
+// One server wallet mints for every session, so a dropped/underpriced tx can leave a nonce gap that
+// stalls the txs behind it. Without a timeout, waitForTransactionReceipt polls forever and the mint
+// route hangs — the client then sits at "minting…" with no error and no retry. Cap the wait so a
+// stuck tx surfaces as a failure (retryable) instead. Receipts are awaited in parallel, so this is
+// the total wait, not per-tx. Kept under the mint route's maxDuration (60s) so the route returns a
+// clean JSON error instead of being platform-killed; Sepolia blocks are ~12s, so this still tolerates
+// several missed blocks before failing.
+const RECEIPT_TIMEOUT_MS = 55_000;
+
 async function sendAll(txs: Tx[]) {
   const w = serverWallet();
   // Independent txs go out back-to-back (nonceManager), then we wait for all of them.
   const hashes: Hex[] = [];
   for (const t of txs) hashes.push(await w.writeContract(t));
-  const receipts = await Promise.all(hashes.map((hash) => publicClient.waitForTransactionReceipt({ hash })));
+  const receipts = await Promise.all(
+    hashes.map((hash) => publicClient.waitForTransactionReceipt({ hash, timeout: RECEIPT_TIMEOUT_MS })),
+  );
   const bad = receipts.findIndex((r) => r.status !== "success");
   if (bad >= 0) throw new Error(`tx ${hashes[bad]} reverted`);
   return hashes;

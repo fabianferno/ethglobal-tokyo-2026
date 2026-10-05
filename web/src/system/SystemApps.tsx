@@ -16,6 +16,8 @@ import {
   openApp,
   openFolder,
   openSystem,
+  recordActivity,
+  suiscanLink,
   trashItem,
   useOS,
 } from "@/os/store";
@@ -87,7 +89,7 @@ async function revokeAgent(ens: string): Promise<boolean> {
       balloon("Couldn't end process", j.error ?? "unknown error");
       return false;
     }
-    balloon("Process ended", j.revoked ? `AgentCap for ${ens} burned on Sui.\n${String(j.digest).slice(0, 16)}…` : `${ens}: ${j.reason}.`);
+    balloon("Process ended", j.revoked ? `AgentCap for ${ens} burned on Sui.\n${String(j.digest).slice(0, 16)}…` : `${ens}: ${j.reason}.`, j.revoked && j.digest ? suiscanLink(String(j.digest)) : undefined);
     refreshWallets();
     return true;
   } catch (e) {
@@ -124,7 +126,8 @@ async function sendVaultPayment() {
     const res = await fetch("/api/sui/vault/pay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ amountSui: 0.01 }) });
     const j = await res.json();
     if (res.ok && j.ok) {
-      balloon("Agent payment sent", `AgentVault paid ${j.amountSui} SUI within its cap · real on-chain\n${String(j.digest).slice(0, 16)}…`);
+      recordActivity({ agent: "vault.agent.eth", kind: "agent_pay", amount: j.amountSui, token: "SUI", status: "ok", digest: String(j.digest), real: true });
+      balloon("Agent payment sent", `AgentVault paid ${j.amountSui} SUI within its cap · real on-chain\n${String(j.digest).slice(0, 16)}…`, suiscanLink(String(j.digest)));
     } else if (j.aborted) {
       bsod("vault.agent.eth", "AGENT_SPEND_LIMIT_EXCEEDED", `agent_pay aborted on-chain: code ${j.code} (${j.name}).`);
     } else {
@@ -285,6 +288,10 @@ export function TaskManager() {
         )}
         {tab === 2 && (
           <ListView
+            onSelect={(i) => {
+              const a = activity[i];
+              if (a?.real && a.digest) window.open(suiscanLink(a.digest).url, "_blank", "noopener");
+            }}
             table={{
               columns: [
                 { key: "t", label: "Time" },
@@ -294,13 +301,14 @@ export function TaskManager() {
                 { key: "status", label: "Status" },
                 { key: "digest", label: "Digest" },
               ],
+              // Clicking a real on-chain row opens it on Suiscan.
               rows: activity.map((a) => ({
                 t: new Date(a.t).toLocaleTimeString(),
                 agent: a.agent,
                 kind: a.kind,
                 amt: a.amount ? `${a.amount} ${a.token}` : "—",
                 status: a.status === "ok" ? "✓ Sent" : a.status === "denied" ? "✕ Rejected" : "⛔ Blocked",
-                digest: a.digest ? `${a.digest.slice(0, 10)}…` : "",
+                digest: a.digest ? `${a.real ? "↗ " : ""}${a.digest.slice(0, 10)}…` : "",
               })),
             }}
           />

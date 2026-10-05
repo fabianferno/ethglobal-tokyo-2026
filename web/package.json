@@ -14,6 +14,7 @@
     "sui:build": "bash scripts/sui-build.sh",
     "sui:publish": "tsx scripts/sui-publish.ts",
     "sui:smoke": "tsx scripts/sui-smoke.ts",
+    "sui:topup": "tsx scripts/sui-topup.ts",
     "sui:test": "docker run --rm -v \"$PWD/move\":/work mysten/sui-tools:testnet sui move test --path /work/suica_vault"
   },
   "dependencies": {

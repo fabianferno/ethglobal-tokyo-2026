@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import type { IconName } from "@/components/win99/Icon";
 import { fakeDigest } from "@/lib/chain/mock";
+import { explorerTx } from "@/lib/sui/config";
 import { type AppManifest, newId } from "@/lib/compose/compose";
 import { PUBLISHED } from "@/lib/compose/registry";
 import { deviceAddress, signAction } from "@/lib/ens/device";
@@ -55,7 +56,7 @@ export type Win = {
   payload: WinPayload;
 };
 
-export type Activity = { t: number; agent: string; kind: string; amount: number; token: string; status: "ok" | "denied" | "blocked"; digest?: string };
+export type Activity = { t: number; agent: string; kind: string; amount: number; token: string; status: "ok" | "denied" | "blocked"; digest?: string; /** true when `digest` is a real on-chain Sui tx (else a paper-mode fake). */ real?: boolean };
 
 export type OSState = {
   user: string | null;
@@ -68,7 +69,7 @@ export type OSState = {
   z: number;
   startOpen: boolean;
   bsod: { code: string; agent: string; detail: string } | null;
-  balloon: { title: string; text: string } | null;
+  balloon: { title: string; text: string; link?: BalloonLink } | null;
   activity: Activity[];
   trash: DesktopItem[];
   hydrated: boolean;
@@ -105,6 +106,19 @@ export function hydrate() {
     if (raw) {
       const saved = JSON.parse(raw) as Partial<OSState>;
       state = { ...state, ...saved };
+      // A "minting" status was persisted mid-mint; the request that would resolve it died with the
+      // old page, and nothing re-drives it on reload. Left alone it spins forever. Mark it failed so
+      // the retry affordance (right-click → Mint on ENS) shows instead of a permanent spinner.
+      if (state.items?.some((i) => i.kind !== "system" && i.chain?.status === "minting")) {
+        state = {
+          ...state,
+          items: state.items.map((i) =>
+            i.kind !== "system" && i.chain?.status === "minting"
+              ? ({ ...i, chain: { status: "failed", error: "Mint was interrupted (page reloaded). Right-click → Mint on ENS to retry." } } as DesktopItem)
+              : i,
+          ),
+        };
+      }
     }
   } catch {
     /* ignore */
@@ -508,7 +522,7 @@ export function resolveSign(reqId: string, ok: boolean, extra?: { digest?: strin
   fn({ ok, ...extra });
 }
 
-export function recordActivity(a: Omit<Activity, "t" | "digest"> & { digest?: string }) {
+export function recordActivity(a: Omit<Activity, "t" | "digest" | "real"> & { digest?: string; real?: boolean }) {
   set((s) => ({ activity: [{ ...a, t: Date.now(), digest: a.digest ?? (a.status === "ok" ? fakeDigest() : undefined) }, ...s.activity].slice(0, 100) }));
 }
 
@@ -526,8 +540,8 @@ export async function propose(tx: TxProposal): Promise<string | null> {
   }
   const real = !!r.digest;
   const digest = r.digest ?? fakeDigest();
-  recordActivity({ agent: tx.agent, kind: tx.kind, amount: tx.amount, token: tx.token, status: "ok", digest });
-  balloon(real ? "Transaction sent" : "Transaction sent (paper)", `${tx.kind}${tx.amount ? ` · ${tx.amount} ${tx.token}` : ""}\n${digest.slice(0, 12)}…`);
+  recordActivity({ agent: tx.agent, kind: tx.kind, amount: tx.amount, token: tx.token, status: "ok", digest, real });
+  balloon(real ? "Transaction sent" : "Transaction sent (paper)", `${tx.kind}${tx.amount ? ` · ${tx.amount} ${tx.token}` : ""}\n${digest.slice(0, 12)}…`, real ? suiscanLink(digest) : undefined);
   return digest;
 }
 
@@ -539,7 +553,7 @@ export async function chargeSuica(): Promise<void> {
     const res = await fetch("/api/sui/charge", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: addr }) });
     const j = await res.json();
     if (!res.ok) throw new Error(j.error ?? "charge failed");
-    balloon("Suica charged", `+${j.amount} ${j.token}${j.digest ? `\n${String(j.digest).slice(0, 12)}…` : ""}`);
+    balloon("Suica charged", `+${j.amount} ${j.token}${j.digest ? `\n${String(j.digest).slice(0, 12)}…` : ""}`, j.digest ? suiscanLink(String(j.digest)) : undefined);
   } catch (e) {
     balloon("Charge failed", (e as Error).message);
   }
@@ -548,11 +562,16 @@ export async function chargeSuica(): Promise<void> {
 /* ── Notifications & crashes ─────────────────────────────── */
 
 let balloonTimer: ReturnType<typeof setTimeout> | undefined;
-export function balloon(title: string, text: string) {
+export type BalloonLink = { label: string; url: string };
+/** "View on Suiscan" button for a real Sui tx digest. */
+export const suiscanLink = (digest: string): BalloonLink => ({ label: "View on Suiscan", url: explorerTx(digest) });
+
+export function balloon(title: string, text: string, link?: BalloonLink) {
   clearTimeout(balloonTimer);
-  set(() => ({ balloon: { title, text } }));
+  set(() => ({ balloon: { title, text, link } }));
   playSound("notify");
-  balloonTimer = setTimeout(() => set(() => ({ balloon: null })), 4500);
+  // Linked balloons stay up longer so there's time to click through.
+  balloonTimer = setTimeout(() => set(() => ({ balloon: null })), link ? 12000 : 4500);
 }
 
 export function bsod(agent: string, code = "AGENT_SPEND_LIMIT_EXCEEDED", detail = "") {

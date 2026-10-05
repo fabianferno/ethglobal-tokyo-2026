@@ -20,7 +20,7 @@ const TOPICS: Topic[] = [
   { id: "how", label: "How it works", icon: "settings" },
 ];
 
-const TRY: { q: string; what: string }[] = [
+export const TRY: { q: string; what: string }[] = [
   { q: "excel of vitalik.eth portfolio", what: "a spreadsheet of a real wallet" },
   { q: "paint but roast vitalik.eth", what: "MS Paint roasts real holdings" },
   { q: "doom but I'm shooting my losses", what: "your losing bags are the demons" },
