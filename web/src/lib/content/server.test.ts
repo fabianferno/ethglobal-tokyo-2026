@@ -19,6 +19,12 @@ describe("buildPrompt", () => {
     expect(buildPrompt({ ...req, shell: "minesweeper", shape: "grid" }).system).toMatch(/6 to 8 rows by 6 to 8 columns/);
   });
 
+  test("asks for poster text that fits the Paint canvas", () => {
+    const { system } = buildPrompt({ ...req, shell: "paint", shape: "scene" });
+    expect(system).toMatch(/headline under 30 characters/);
+    expect(system).toMatch(/one-liners under 60 characters/);
+  });
+
   test("keeps the OS out of the content", () => {
     expect(buildPrompt(req).system).toMatch(/Do not mention Windows, Jev OS or computers/);
   });

@@ -19,7 +19,8 @@ export async function POST(request: Request) {
   if (text.trim().length < 2) return Response.json(noneResult());
 
   const hit = cache.get(key);
-  if (hit) return Response.json({ ...hit, latencyMs: 0, cached: true } satisfies IntentResult);
+  // Keep the time Jev took for this answer; `cached` says it came from here.
+  if (hit) return Response.json({ ...hit, cached: true } satisfies IntentResult);
 
   if (jevMode() === "offline") return Response.json(mockClassify(text));
 

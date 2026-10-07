@@ -1,3 +1,5 @@
+> **Superseded (2026-10-07).** This describes the ETHGlobal crypto version (branch `ethglobal-tokyo-2026`). Current design: `docs/superpowers/specs/2026-10-07-jev-os-design.md`.
+
 # Handoff — where Suica OS stands (2026-09-26)
 
 Read this first when picking the project up on a new machine. The product spec is `docs/PRD.md`; the code map is `web/README.md`.

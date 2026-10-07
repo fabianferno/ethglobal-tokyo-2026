@@ -8,6 +8,6 @@ test.each(SHAPE_KEYS)("%s skeleton carries its data field", (shape) => {
   const b = skeletonBundle(shape, "Cats");
   expect(b[FIELD[shape]]).toBeDefined();
   expect(b.title).toBe("Cats");
-  expect(b.subtitle).toBe("Jev is writing…");
+  expect(b.subtitle).toBe("Writing…");
   expect(b.actions).toEqual([]);
 });

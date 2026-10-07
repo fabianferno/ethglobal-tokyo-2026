@@ -1,5 +1,5 @@
 {
-  "name": "web",
+  "name": "jev-os",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "smoke": "tsx scripts/jev-smoke.mts"
   },
   "dependencies": {
     "@typesafe-ai/sdk": "^0.6.0",

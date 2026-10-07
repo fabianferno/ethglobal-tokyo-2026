@@ -3,15 +3,17 @@
 import gsap from "gsap";
 import { useLayoutEffect, useRef, useState } from "react";
 import { BarChart } from "@/components/win99/Widgets";
-import { balloon } from "@/os/store";
 import type { ShellProps } from "./AppFrame";
 import { PictureStatus } from "./Picture";
 
 const PALETTE = ["#000000", "#808080", "#800000", "#808000", "#008000", "#008080", "#000080", "#800080", "#ffffff", "#c0c0c0", "#df2e28", "#f7d417", "#1f9a3a", "#22c6c6", "#2f63d8", "#9b2fd6"];
 const TOOLS = ["✎", "✐", "◢", "A", "□", "○", "◆", "⊕", "✂", "⌫"];
 
+/** Font size that fits `text` into `width` px (Impact/Comic Sans run ~0.5 em per glyph), clamped. */
+const fit = (text: string, width: number, min: number, max: number) => Math.max(min, Math.min(max, Math.floor(width / (Math.max(1, text.length) * 0.5))));
+
 /** MS Paint shell: a meme canvas composed from the Scene shape, plus real freehand drawing on top. */
-export function PaintShell({ app, bundle, preview, picture }: ShellProps) {
+export function PaintShell({ app, bundle, preview, picture, run }: ShellProps) {
   const [color, setColor] = useState("#df2e28");
   const [strokes, setStrokes] = useState<{ c: string; d: string }[]>([]);
   const drawing = useRef<string | null>(null);
@@ -72,9 +74,9 @@ export function PaintShell({ app, bundle, preview, picture }: ShellProps) {
             {fullPicture ? null : scene ? (
               <>
                 <rect width="640" height="420" fill="#fffdf2" />
-                <text className="p-head" x="320" y="58" textAnchor="middle" fontFamily="Impact, 'Arial Black', sans-serif" fontSize="44" fill="#fff" stroke="#000" strokeWidth="2.5" paintOrder="stroke">{scene.headline}</text>
-                {scene.lines.map((l, i) => (
-                  <text key={i} className="p-line" x="28" y={130 + i * 42} fontFamily="'Comic Sans MS', 'Comic Neue', cursive" fontSize="20" fill={["#13389e", "#9b2fd6", "#1f9a3a"][i % 3]}>{l}</text>
+                <text className="p-head" x="320" y="58" textAnchor="middle" fontFamily="Impact, 'Arial Black', sans-serif" fontSize={fit(scene.headline, 600, 22, 44)} fill="#fff" stroke="#000" strokeWidth="2.5" paintOrder="stroke">{scene.headline}</text>
+                {scene.lines.slice(0, 3).map((l, i) => (
+                  <text key={i} className="p-line" x="28" y={122 + i * 44} fontFamily="'Comic Sans MS', 'Comic Neue', cursive" fontSize={fit(l, 584, 12, 20)} fill={["#13389e", "#9b2fd6", "#1f9a3a"][i % 3]}>{l}</text>
                 ))}
                 <g transform="translate(28 268)">
                   {scene.stats.map((s, i) => (
@@ -85,13 +87,25 @@ export function PaintShell({ app, bundle, preview, picture }: ShellProps) {
                     </g>
                   ))}
                 </g>
-                {scene.stamps.map((s, i) => (
-                  <text key={i} className="p-stamp" x={500 + (i % 3) * 44} y={120 + Math.floor(i / 3) * 60} fontSize="40">{s}</text>
+                {scene.stamps.slice(0, 3).map((s, i) => (
+                  // Rubber stamps: one word each, stacked bottom-left next to the verdict, slightly rotated.
+                  <text key={i} className="p-stamp" x={96} y={352 + i * 26} fontSize="18" fontWeight="900" textAnchor="middle" fill="#df2e28" stroke="#7a0f0b" strokeWidth=".6" transform={`rotate(-12 96 ${352 + i * 26})`}>
+                    {s.toUpperCase()}
+                  </text>
                 ))}
-                <g className="p-verdict" transform="translate(470 370) rotate(-10)">
-                  <rect x="-140" y="-34" width="280" height="56" fill="none" stroke="#df2e28" strokeWidth="5" rx="6" />
-                  <text textAnchor="middle" y="6" fontFamily="Impact, 'Arial Black', sans-serif" fontSize="34" fill="#df2e28" letterSpacing="2">{scene.verdict}</text>
-                </g>
+                {(() => {
+                  // The verdict is a stamp right of the stamps; shrink it to fit 380 px.
+                  const fs = fit(scene.verdict, 380, 12, 30);
+                  const w = Math.min(400, scene.verdict.length * fs * 0.5 + 30);
+                  return (
+                    <g className="p-verdict" transform="translate(410 370) rotate(-4)">
+                      <rect x={-w / 2} y={-fs - 4} width={w} height={fs + 22} fill="#fffef6" stroke="#df2e28" strokeWidth="4" rx="6" />
+                      <text textAnchor="middle" y="6" fontFamily="Impact, 'Arial Black', sans-serif" fontSize={fs} fill="#df2e28" letterSpacing="1">
+                        {scene.verdict}
+                      </text>
+                    </g>
+                  );
+                })()}
               </>
             ) : bundle.series ? (
               (() => {
@@ -162,7 +176,11 @@ export function PaintShell({ app, bundle, preview, picture }: ShellProps) {
               ))}
             </div>
             <div className="grow" />
-            <button className="btn primary" onClick={() => balloon("Sent!", "Roast shared as a link. They will know.")}>Send to…</button>
+            {bundle.actions.map((a) => (
+              <button key={a.id} className={`btn ${a.primary ? "primary" : ""}`} onClick={() => run(a)}>
+                {a.label}
+              </button>
+            ))}
           </div>
         )}
       </div>

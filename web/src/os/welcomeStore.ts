@@ -4,11 +4,11 @@ import { useSyncExternalStore } from "react";
 
 /**
  * The Welcome dialog is the landing page: there is no marketing site, so first-time visitors learn
- * what Suica OS is right after it boots. Shown once per browser (unless "Show at startup" stays on),
+ * what Jev OS is right after it boots. Shown once per browser (unless "Show at startup" stays on),
  * reopenable from search ("what is this"), the Start menu and Tappy.
  */
 
-const KEY = "suicaos:welcome:v1";
+const KEY = "jevos:welcome:v1";
 let open = false;
 const listeners = new Set<() => void>();
 const closedSubs = new Set<() => void>();

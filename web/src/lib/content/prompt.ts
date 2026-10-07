@@ -18,7 +18,7 @@ const SHAPE: Record<ShapeKey, string> = {
   list: "a list of up to 10 items, each with a short title, an optional subtitle, an optional right-hand value and a tone (up/down/warn/none)",
   series: "a series of 4 to 60 numbers in time order, with a label and an optional unit",
   gauge: "one value between 0 and 1, a short label and caption, and up to 7 forecast entries (day name + value 0..1)",
-  scene: "a poster: a headline, a one-sentence verdict, 1 to 6 one-liners, up to 4 label/value stats and up to 3 one-word stamps",
+  scene: "a poster: a headline under 30 characters, a verdict under 40 characters, 2 to 3 punchy one-liners under 60 characters each, up to 4 short label/value stats and up to 3 one-word stamps",
   grid: "a board of 6 to 8 rows by 6 to 8 columns, every row the same length; each cell has a short label and a danger value 0..1 (above 0.72 is a mine or enemy; make about one cell in six a mine)",
   doc: "a piece of writing up to 2000 characters, plain text with line breaks",
   picture: "a caption for a picture of the subject",

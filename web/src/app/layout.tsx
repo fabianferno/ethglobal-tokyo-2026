@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Suica OS",
-  description: "A fully hallucinated operating system where every app is an agent with an ENS name and a Sui wallet.",
+  title: "Jev OS",
+  description: "A desktop where anything you type becomes an app. Interfaces composed live by Jev.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,3 +1,5 @@
+> **Superseded (2026-10-07).** This describes the ETHGlobal crypto version (branch `ethglobal-tokyo-2026`). Current design: `docs/superpowers/specs/2026-10-07-jev-os-design.md`.
+
 # Suica OS — PRD
 
 > A fully hallucinated, Windows‑98‑styled operating system where every app is an agent with an ENS name and a Sui wallet, and every UI is composed in real time by Jev.
