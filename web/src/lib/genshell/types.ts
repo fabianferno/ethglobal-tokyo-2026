@@ -8,13 +8,6 @@ export type ShellInfo = {
   model: string;
   createdAt: number;
   installedBy: string;
-  /** Set once the smoke test passed in a browser and the shell was published. */
+  /** Set once the smoke test passed in a browser and the shell was installed. */
   published: boolean;
-  /** Walrus blob holding the HTML (testnet). */
-  blobId?: string;
-  /** <label>.shells.suica.eth once minted on ENS (Sepolia). */
-  ens?: string;
 };
-
-/** What goes in the shell's `suica.shell` ENS text record. Small: every byte is calldata. */
-export type ShellPointer = { v: 1; name: string; blobId: string; sha256: string; bytes: number; by: string };

@@ -13,7 +13,7 @@ const STAGES: Record<Install["stage"], { text: string; from: number; to: number;
   generating: { text: "Writing program files…", from: 0.03, to: 0.72, expectMs: 90_000 },
   retrying: { text: "Fixing a problem and trying again…", from: 0.3, to: 0.8, expectMs: 90_000 },
   testing: { text: "Testing in the sandbox…", from: 0.75, to: 0.88, expectMs: 8_000 },
-  publishing: { text: "Registering with Walrus + ENS…", from: 0.9, to: 0.98, expectMs: 4_000 },
+  installing: { text: "Installing for everyone…", from: 0.9, to: 0.98, expectMs: 4_000 },
   done: { text: "Setup complete.", from: 1, to: 1, expectMs: 1 },
   failed: { text: "Setup failed.", from: 0, to: 0, expectMs: 1 },
 };

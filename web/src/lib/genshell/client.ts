@@ -9,10 +9,10 @@ import type { ShellInfo } from "./types";
 
 /**
  * Client side of generated shells: what's installed, what's installing (the tray), per-app choice of
- * generated vs. fallback shell, and the in-browser smoke test that gates publishing.
+ * generated vs. fallback shell, and the in-browser smoke test that gates installing.
  */
 
-export type InstallStage = "generating" | "testing" | "retrying" | "publishing" | "done" | "failed";
+export type InstallStage = "generating" | "testing" | "retrying" | "installing" | "done" | "failed";
 export type Install = { label: string; name: string; exe: string; stage: InstallStage; startedAt: number; stageAt?: number; error?: string; appId?: string; fallback?: string };
 
 export type ShellEvent =
@@ -28,7 +28,7 @@ type State = {
   generator: boolean;
 };
 
-const KEY = "suicaos:genshell:v1";
+const KEY = "jevos:genshell:v1";
 let state: State = { shells: {}, installs: {}, prefer: {}, generator: true };
 const listeners = new Set<() => void>();
 const eventSubs = new Set<(e: ShellEvent) => void>();
@@ -133,8 +133,8 @@ export function smokeTest(html: string, bundle: Bundle, app: AppManifest, timeou
     };
     const onMsg = (e: MessageEvent) => {
       if (e.source !== frame.contentWindow || !e.data?.type) return;
-      if (e.data.type === "suica:error") errors.push(String(e.data.message));
-      if (e.data.type === "suica:ready") {
+      if (e.data.type === "jev:error") errors.push(String(e.data.message));
+      if (e.data.type === "jev:ready") {
         // Give it a moment to throw on its first few frames.
         setTimeout(() => {
           if (errors.length) finish({ ok: false, error: `runtime error: ${errors[0]}` });
@@ -143,9 +143,9 @@ export function smokeTest(html: string, bundle: Bundle, app: AppManifest, timeou
         }, 1200);
       }
     };
-    const timer = setTimeout(() => finish({ ok: false, error: errors[0] ? `runtime error: ${errors[0]}` : "never called suica.ready() within 9 seconds" }), timeoutMs);
+    const timer = setTimeout(() => finish({ ok: false, error: errors[0] ? `runtime error: ${errors[0]}` : "never called jev.ready() within 9 seconds" }), timeoutMs);
     window.addEventListener("message", onMsg);
-    frame.onload = () => frame.contentWindow?.postMessage({ type: "suica:data", bundle, app: { title: app.title, ens: app.ens, target: app.target, prompt: app.prompt, vibe: app.vibe, preview: false } }, "*");
+    frame.onload = () => frame.contentWindow?.postMessage({ type: "jev:data", bundle, app: { title: app.title, prompt: app.prompt, vibe: app.vibe, preview: false } }, "*");
     frame.srcdoc = srcdocFor(html);
     document.body.appendChild(frame);
   });
@@ -197,13 +197,11 @@ export function installFor(app: AppManifest, bundle: Bundle, installedBy: string
           lastError = test.error ?? "failed the install check";
           continue;
         }
-        patchInstall(hit.label, { stage: "publishing" });
+        patchInstall(hit.label, { stage: "installing" });
         void fetch("/api/shells", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "publish", label: hit.label, sha256: shell.sha256 }) }).catch(() => {});
         set((s) => ({ shells: { ...s.shells, [hit.label]: shell } }));
         patchInstall(hit.label, { stage: "done" });
         emit({ type: "installed", shell, app });
-        // The publish (Walrus + ENS) finishes in the background; pick up its ENS name later.
-        setTimeout(() => void refreshShells(), 60_000);
         return;
       } catch (e) {
         lastError = (e as { check?: string }).check ?? (e as Error).message;

@@ -2,27 +2,22 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { isFree, listAll, mintApp, mintFolder, ROOT } from "@/lib/ens/onchain";
-import { hasServerWallet, publicClient } from "@/lib/ens/wallet";
 import { exeName, shellLabel } from "./detect";
 import { systemPrompt, userPrompt } from "./prompt";
-import type { ShellInfo, ShellPointer } from "./types";
+import type { ShellInfo } from "./types";
 
 /**
  * Generated shells: an LLM writes a new renderer once ("TETRIS.EXE"), a browser smoke-tests it in the
- * sandbox, then it's published — HTML on Walrus, pointer + sha256 on ENS at <label>.shells.suica.eth —
- * and every later "tetris but …" is instant for everyone.
+ * sandbox, then it's installed on this server and every later "tetris but …" is instant for everyone.
  *
- * Local cache: web/.genshells/<label>.json (gitignored). Falls back to memory where the fs is read-only.
+ * Cache: web/.genshells/v2/<label>.json (gitignored; v2 = the jev.* bridge, older files are ignored).
+ * Falls back to memory where the fs is read-only.
  */
 
 /** Tried in order; a model the gateway key can't use (e.g. free tier) falls through to the next. */
 const MODELS = (process.env.GENSHELL_MODELS || "anthropic/claude-sonnet-5,openai/gpt-5").split(",").map((m) => m.trim()).filter(Boolean);
 const GATEWAY = "https://ai-gateway.vercel.sh/v1/chat/completions";
-const WALRUS_PUBLISHER = process.env.WALRUS_PUBLISHER_URL || "https://publisher.walrus-testnet.walrus.space";
-const WALRUS_AGGREGATOR = process.env.WALRUS_AGGREGATOR_URL || "https://aggregator.walrus-testnet.walrus.space";
-export const SHELLS_FOLDER = `shells.${ROOT}`;
-const DIR = path.join(process.cwd(), ".genshells");
+const DIR = path.join(process.cwd(), ".genshells", "v2");
 const MAX_BYTES = 60_000;
 
 type Record_ = ShellInfo & { html: string };
@@ -71,54 +66,16 @@ async function listLocal(): Promise<ShellInfo[]> {
   return [...mem.values()].map(infoOf);
 }
 
-/* ── Chain: <label>.shells.suica.eth ── */
-
-const TEXT_SHELL = "suica.shell";
-
-async function chainShells(): Promise<ShellInfo[]> {
-  if (!hasServerWallet() && !process.env.SEPOLIA_RPC_URL) return [];
-  const entries = (await listAll()).filter((e) => e.parent === SHELLS_FOLDER && !e.aliasOf);
-  const out = await Promise.all(
-    entries.map(async (e): Promise<ShellInfo | null> => {
-      const raw = await publicClient.getEnsText({ name: e.ens, key: TEXT_SHELL }).catch(() => null);
-      if (!raw) return null;
-      try {
-        const p = JSON.parse(raw) as ShellPointer;
-        const label = e.ens.slice(0, e.ens.indexOf("."));
-        return { label, name: p.name, exe: exeName(p.name), sha256: p.sha256, bytes: p.bytes, model: "", createdAt: 0, installedBy: p.by, published: true, blobId: p.blobId, ens: e.ens };
-      } catch {
-        return null;
-      }
-    }),
-  );
-  return out.filter((x): x is ShellInfo => x !== null);
-}
-
-/** Everything installed: this server's cache + every shell published on ENS by anyone. */
+/** Every installed shell on this server. */
 export async function listShells(): Promise<ShellInfo[]> {
   // Only shells that passed the browser smoke test count as installed (`published`); an install that
   // was interrupted mid-test stays invisible until someone finishes it.
-  const local = (await listLocal()).filter((s) => s.published);
-  const chain = await chainShells().catch(() => []);
-  const byLabel = new Map<string, ShellInfo>();
-  for (const s of local) byLabel.set(s.label, s);
-  // First come, first served: the one on ENS is canonical.
-  for (const s of chain) byLabel.set(s.label, s);
-  return [...byLabel.values()];
+  return (await listLocal()).filter((x) => x.published);
 }
 
-/** The HTML for a shell: local cache, else Walrus via its ENS pointer (hash-checked). */
+/** The HTML for a shell, from this server's cache. */
 export async function shellHtml(label: string): Promise<string | null> {
-  const local = await loadLocal(label);
-  if (local) return local.html;
-  const info = (await chainShells().catch(() => [])).find((s) => s.label === label);
-  if (!info?.blobId) return null;
-  const res = await fetch(`${WALRUS_AGGREGATOR}/v1/blobs/${encodeURIComponent(info.blobId)}`);
-  if (!res.ok) return null;
-  const html = await res.text();
-  if (sha256(html) !== info.sha256) throw new Error(`${info.ens}: Walrus blob doesn't match the sha256 on ENS — refusing to run it`);
-  await save({ ...info, html });
-  return html;
+  return (await loadLocal(label))?.html ?? null;
 }
 
 /* ── Generate ── */
@@ -135,8 +92,8 @@ const FORBIDDEN: [RegExp, string][] = [
 
 export function checkHtml(html: string): string | null {
   if (html.length > MAX_BYTES) return `too large (${html.length} bytes, max ${MAX_BYTES})`;
-  if (!/suica\.onData\s*\(/.test(html)) return "never calls suica.onData";
-  if (!/suica\.ready\s*\(/.test(html)) return "never calls suica.ready";
+  if (!/jev\.onData\s*\(/.test(html)) return "never calls jev.onData";
+  if (!/jev\.ready\s*\(/.test(html)) return "never calls jev.ready";
   for (const [re, what] of FORBIDDEN) if (re.test(html)) return `uses ${what}`;
   return null;
 }
@@ -206,30 +163,7 @@ export function generateShell(opts: { name: string; prompt: string; sample: unkn
   return p;
 }
 
-/* ── Publish (after the browser smoke test passed) ── */
-
-async function uploadWalrus(html: string): Promise<string> {
-  const res = await fetch(`${WALRUS_PUBLISHER}/v1/blobs?epochs=10`, { method: "PUT", body: html });
-  const j = (await res.json()) as { newlyCreated?: { blobObject: { blobId: string } }; alreadyCertified?: { blobId: string } };
-  const id = j.newlyCreated?.blobObject.blobId ?? j.alreadyCertified?.blobId;
-  if (!res.ok || !id) throw new Error(`walrus upload failed (${res.status})`);
-  return id;
-}
-
-let folderReady: Promise<void> | null = null;
-function ensureFolder() {
-  // System-owned on purpose: no owner, so the server can keep updating shell records.
-  folderReady ??= (async () => {
-    if (await isFree("shells", ROOT)) {
-      const { ens } = await mintFolder({ label: "shells", description: "Suica OS generated shells — one per program, reusable by every app" });
-      if (ens !== SHELLS_FOLDER) throw new Error(`expected ${SHELLS_FOLDER}, got ${ens}`);
-    }
-  })().catch((e) => {
-    folderReady = null;
-    throw e;
-  });
-  return folderReady;
-}
+/* ── Install (after the browser smoke test passed) ── */
 
 const publishing = new Map<string, Promise<ShellInfo>>();
 
@@ -241,37 +175,16 @@ export async function canPublish(label: string, sha: string): Promise<string | n
   return checkHtml(rec.html);
 }
 
-/** Walrus upload + ENS mint. Slow (~30–60 s); callers run it in the background. */
+/** Passed the smoke test → installed for everyone on this server. */
 export function publishShell(label: string): Promise<ShellInfo> {
   const running = publishing.get(label);
   if (running) return running;
   const p = (async () => {
     const rec = await loadLocal(label);
     if (!rec) throw new Error(`no shell ${label}`);
-    if (rec.published && rec.ens) return infoOf(rec);
-    // Passed the smoke test → installed for everyone on this server right away; Walrus + ENS follow.
-    await save({ ...rec, published: true });
-    const blobId = rec.blobId ?? (await uploadWalrus(rec.html));
-    await save({ ...rec, published: true, blobId });
-    let ens = rec.ens;
-    if (!ens && hasServerWallet()) {
-      await ensureFolder();
-      // First come, first served: if someone already published this program, theirs stays canonical.
-      if (await isFree(label, SHELLS_FOLDER)) {
-        const pointer: ShellPointer = { v: 1, name: rec.name, blobId, sha256: rec.sha256, bytes: rec.bytes, by: rec.installedBy };
-        const minted = await mintApp({
-          label,
-          parent: SHELLS_FOLDER,
-          published: false,
-          manifest: { v: 1, title: rec.exe, icon: "document", shell: "explorer", fn: "none", vibe: "playful", scene: "none", prompt: rec.name, params: {}, readOnly: true, target: "", owner: rec.installedBy, description: `Generated shell ${rec.exe}` },
-          extraTexts: { [TEXT_SHELL]: JSON.stringify(pointer) },
-        });
-        ens = minted.ens;
-      } else ens = `${label}.${SHELLS_FOLDER}`;
-    }
-    const done: Record_ = { ...rec, blobId, ens, published: true };
+    const done: Record_ = { ...rec, published: true };
     await save(done);
-    console.info(`[genshell] ${rec.exe} published → walrus ${blobId}${ens ? ` · ${ens}` : ""}`);
+    console.info(`[genshell] ${rec.exe} installed`);
     return infoOf(done);
   })().finally(() => publishing.delete(label));
   publishing.set(label, p);

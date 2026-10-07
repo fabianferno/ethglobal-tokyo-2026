@@ -32,13 +32,13 @@ export function GeneratedShell({ app, bundle, preview, run, shell, fallback }: S
   // Push (and re-push) the real data whenever it changes; the shell never fetches anything itself.
   useEffect(() => {
     if (!loaded) return;
-    frame.current?.contentWindow?.postMessage({ type: "suica:data", bundle, app: { title: app.title, ens: app.ens, target: app.target, prompt: app.prompt, vibe: app.vibe, preview: !!preview } }, "*");
+    frame.current?.contentWindow?.postMessage({ type: "jev:data", bundle, app: { title: app.title, prompt: app.prompt, vibe: app.vibe, preview: !!preview } }, "*");
   }, [loaded, bundle, app, preview]);
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.source !== frame.current?.contentWindow || !e.data || typeof e.data.type !== "string") return;
-      if (e.data.type === "suica:propose" && !preview) {
+      if (e.data.type === "jev:action" && !preview) {
         const a = bundle.actions.find((x) => x.id === e.data.actionId);
         if (a) run(a); // unknown ids are ignored: a shell can only ask for what the trusted function built
       }
@@ -66,7 +66,7 @@ export function GeneratedShell({ app, bundle, preview, run, shell, fallback }: S
         <div className="row" style={{ gap: 6, fontSize: 11, alignItems: "center" }}>
           <span className="badge info">{shell.exe}</span>
           <span className="muted grow" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            Generated shell · sandboxed · {shell.ens ?? "installing on ENS…"}
+            Generated shell · sandboxed · {shell.exe}
             {shell.installedBy ? ` · installed by ${shell.installedBy}` : ""}
           </span>
           <button type="button" className="btn sm" onClick={() => setPrefer(app.id, false)}>Use built-in shell</button>

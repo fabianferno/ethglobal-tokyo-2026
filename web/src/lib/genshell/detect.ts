@@ -1,7 +1,7 @@
 /**
  * Which program did the person name? "tetris but my portfolio" → tetris. Deterministic, runs on every
  * keystroke. A name here that isn't a built-in shell is a candidate for an LLM-generated shell
- * (installed once, then instant for everyone via <label>.shells.suica.eth).
+ * (installed once on the server, then instant for everyone).
  */
 
 /** Words that already map to a built-in shell (or aren't a program at all). */

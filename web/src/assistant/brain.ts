@@ -2,6 +2,7 @@
 
 import { type AppManifest, SHELL_META } from "@/lib/compose/compose";
 import { skeletonBundle } from "@/lib/compose/skeleton";
+import { fetchContent } from "@/lib/content/client";
 import { dismissInstall, getGenShells, installFor, onShellEvent, refreshShells, setPrefer } from "@/lib/genshell/client";
 import { detectProgram } from "@/lib/genshell/detect";
 import { getOS, openApp, toggleStart } from "@/os/store";
@@ -87,16 +88,20 @@ export function onWindowsChanged() {
   for (const w of getOS().windows) {
     if (w.payload.type !== "app" || seenWindows.has(w.id)) continue;
     seenWindows.add(w.id);
-    maybeInstallProgram(w.payload.app);
+    void maybeInstallProgram(w.payload.app);
   }
 }
 
-/** "tetris but …" and TETRIS.EXE isn't installed: install it in the tray, keep the built-in shell meanwhile. */
-function maybeInstallProgram(app: AppManifest) {
+/**
+ * "tetris but …" and TETRIS.EXE isn't installed: install it in the tray, keep the built-in shell meanwhile.
+ * The generator gets the window's real content as its sample (same cached request, no extra Gemini call).
+ */
+async function maybeInstallProgram(app: AppManifest) {
   const hit = detectProgram(app.prompt);
   if (!hit || getGenShells().shells[hit.label]) return;
   if (!getGenShells().generator) return;
-  installFor(app, skeletonBundle(app.shape, app.title), "guest", (SHELL_META[app.shell] ?? SHELL_META.explorer).label);
+  const sample = await fetchContent(app, 0).catch(() => skeletonBundle(app.shape, app.title));
+  installFor(app, sample, "guest", (SHELL_META[app.shell] ?? SHELL_META.explorer).label);
 }
 
 /* ── Generated-shell installs ── */
@@ -151,7 +156,7 @@ export function watchInstalls() {
                   primary: true,
                   onClick: () => {
                     dismissInstall(e.install.label);
-                    maybeInstallProgram(app);
+                    void maybeInstallProgram(app);
                   },
                 },
               ]

@@ -1,20 +1,20 @@
 /**
  * The sandbox a generated shell runs in. Generated code is an untrusted guest:
- *  - rendered in <iframe sandbox="allow-scripts" srcdoc=…>: opaque origin, so no cookies, storage,
- *    session, zkLogin or device keys; no forms, popups or top navigation;
+ *  - rendered in <iframe sandbox="allow-scripts" srcdoc=…>: opaque origin, so no cookies, storage
+ *    or session; no forms, popups or top navigation;
  *  - a CSP with default-src 'none': no fetch/XHR/WebSocket/images from the network. Data is PUSHED
  *    in by the OS; the shell never fetches anything;
- *  - the only way out is `suica.propose(actionId)`, which asks the OS to run one of the actions the
- *    trusted function already built. The fixed Signing dialog (and the AgentCap on-chain) still decide.
+ *  - the only way out is `jev.action(actionId)`, which asks the OS to run one of the actions the
+ *    app's bundle already lists (today: Regenerate). The OS decides; the guest never acts itself.
  */
 
 /** Messages OS → shell. */
-export type ToShell = { type: "suica:data"; bundle: unknown; app: { title: string; ens: string; target: string; prompt: string; vibe: string; preview: boolean } };
+export type ToShell = { type: "jev:data"; bundle: unknown; app: { title: string; prompt: string; vibe: string; preview: boolean } };
 /** Messages shell → OS. */
 export type FromShell =
-  | { type: "suica:ready"; painted: boolean }
-  | { type: "suica:propose"; actionId: string }
-  | { type: "suica:error"; message: string };
+  | { type: "jev:ready"; painted: boolean }
+  | { type: "jev:action"; actionId: string }
+  | { type: "jev:error"; message: string };
 
 const CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:";
 
@@ -34,7 +34,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#c0c0c0;col
 const PRELUDE = `(()=>{
 const send=(m)=>parent.postMessage(m,"*");
 let data=null;const subs=[];let readySent=false;
-const usd=(v)=>(v<0?"-$":"$")+Math.abs(+v||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:Math.abs(v)<1?4:2});
+const num=(v)=>(+v||0).toLocaleString("en-US",{maximumFractionDigits:2});
 const pct=(v)=>((v>0?"+":"")+(+v||0).toFixed(1)+"%");
 function painted(){
   for(const c of document.querySelectorAll("canvas")){
@@ -44,18 +44,18 @@ function painted(){
   }
   return (document.body.innerText||"").trim().length>20||document.body.querySelectorAll("*").length>12;
 }
-window.suica={
+window.jev={
   onData(cb){subs.push(cb);if(data)try{cb(data)}catch(e){report(e)}},
-  propose(actionId){send({type:"suica:propose",actionId:String(actionId)})},
-  ready(){if(readySent)return;readySent=true;let done=false;const go=()=>{if(done)return;done=true;send({type:"suica:ready",painted:painted()})};requestAnimationFrame(()=>requestAnimationFrame(go));setTimeout(go,250)},
+  action(actionId){send({type:"jev:action",actionId:String(actionId)})},
+  ready(){if(readySent)return;readySent=true;let done=false;const go=()=>{if(done)return;done=true;send({type:"jev:ready",painted:painted()})};requestAnimationFrame(()=>requestAnimationFrame(go));setTimeout(go,250)},
   get data(){return data},
-  fmt:{usd,pct},
+  fmt:{num,pct},
 };
-function report(e){send({type:"suica:error",message:String((e&&e.message)||e).slice(0,300)})}
+function report(e){send({type:"jev:error",message:String((e&&e.message)||e).slice(0,300)})}
 window.addEventListener("error",(e)=>report(e.error||e.message));
 window.addEventListener("unhandledrejection",(e)=>report(e.reason));
 window.addEventListener("message",(e)=>{
-  if(e.source!==parent||!e.data||e.data.type!=="suica:data")return;
+  if(e.source!==parent||!e.data||e.data.type!=="jev:data")return;
   data={bundle:e.data.bundle,app:e.data.app};
   for(const cb of subs)try{cb(data)}catch(err){report(err)}
 });

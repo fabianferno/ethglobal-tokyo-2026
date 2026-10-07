@@ -9,7 +9,7 @@ export const maxDuration = 300;
 
 const labelRe = /^[a-z0-9-]{1,32}$/;
 
-/** GET → installed shells. GET ?label=x → that shell's HTML (local cache or Walrus via ENS, hash-checked). */
+/** GET → installed shells. GET ?label=x → that shell's HTML. */
 export async function GET(request: Request) {
   const label = new URL(request.url).searchParams.get("label");
   try {
@@ -47,7 +47,6 @@ export async function POST(request: Request) {
     // The caller must name the exact build it smoke-tested; the server re-runs the static checks.
     const bad = await canPublish(b.label, b.sha256);
     if (bad) return Response.json({ error: bad }, { status: 409 });
-    // Walrus + ENS take ~30–60 s: answer now, publish after the response.
     after(() => publishShell(b.label).catch((e) => console.warn("[genshell] publish failed", b.label, (e as Error).message)));
     return Response.json({ ok: true, label: b.label }, { status: 202 });
   }
