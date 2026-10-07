@@ -1,15 +1,15 @@
 "use client";
 
 import type { Fmt, Table } from "@/lib/compose/shapes";
-import { usd } from "@/lib/chain/mock";
 
-export function fmt(v: string | number | undefined, f: Fmt = "text") {
+const PREFIX_UNITS = new Set(["$", "¥", "€", "£", "₹"]);
+
+export function fmt(v: string | number | undefined, f: Fmt = "text", unit = "") {
   if (v === undefined || v === "") return "";
-  if (typeof v === "string") return v;
-  if (f === "usd") return usd(v);
-  if (f === "pct") return `${v.toFixed(1)}%`;
-  if (f === "num") return v.toLocaleString("en-US", { maximumFractionDigits: 2 });
-  return String(v);
+  if (typeof v !== "number" || f === "text") return `${v}`;
+  const n = f === "pct" ? `${v.toLocaleString("en-US", { maximumFractionDigits: 1 })}%` : v.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  if (!unit) return n;
+  return PREFIX_UNITS.has(unit) ? `${unit}${n}` : `${n} ${unit}`;
 }
 
 const tone = (key: string, v: unknown) =>
@@ -30,7 +30,7 @@ export function ListView({ table, selected, onSelect }: { table: Table; selected
           {table.rows.map((r, i) => (
             <tr key={i} className={selected === i ? "sel" : ""} onClick={() => onSelect?.(i)}>
               {table.columns.map((c) => (
-                <td key={c.key} className={`${c.fmt && c.fmt !== "text" ? "num" : ""} ${tone(c.key, r[c.key])}`}>{fmt(r[c.key], c.fmt)}</td>
+                <td key={c.key} className={`${c.fmt && c.fmt !== "text" ? "num" : ""} ${tone(c.key, r[c.key])}`}>{fmt(r[c.key], c.fmt, c.unit)}</td>
               ))}
             </tr>
           ))}
