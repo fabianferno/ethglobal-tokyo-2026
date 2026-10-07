@@ -14,20 +14,18 @@ export type Choice = { id: string; label: string };
 export type Button = { label: string; primary?: boolean; onClick?: (choice: string | null) => void };
 export type Bubble = { id: string; title?: string; text: string; choices?: Choice[]; defaultChoice?: string; buttons: Button[]; mood?: Mood };
 
-/** The spend policy the owner gave the assistant for one app (mirrors the on-chain AgentCap). */
-export type Cap = { mode: "auto" | "ask"; perDayUsd: number; label: string; spentUsd: number; day: string };
 
-type State = { bubble: Bubble | null; queue: Bubble[]; mood: Mood; hidden: boolean; caps: Record<string, Cap> };
+type State = { bubble: Bubble | null; queue: Bubble[]; mood: Mood; hidden: boolean };
 
-const KEY = "suicaos:assistant:v1";
-let state: State = { bubble: null, queue: [], mood: "idle", hidden: false, caps: {} };
+const KEY = "jevos:assistant:v1";
+let state: State = { bubble: null, queue: [], mood: "idle", hidden: false };
 const listeners = new Set<() => void>();
 
 function set(patch: (s: State) => Partial<State>) {
   state = { ...state, ...patch(state) };
   listeners.forEach((l) => l());
   try {
-    localStorage.setItem(KEY, JSON.stringify({ hidden: state.hidden, caps: state.caps }));
+    localStorage.setItem(KEY, JSON.stringify({ hidden: state.hidden }));
   } catch {
     /* private mode */
   }
@@ -36,7 +34,7 @@ function set(patch: (s: State) => Partial<State>) {
 export function hydrateAssistant() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<State>;
-    set(() => ({ hidden: !!saved.hidden, caps: saved.caps ?? {} }));
+    set(() => ({ hidden: !!saved.hidden }));
   } catch {
     /* ignore */
   }
@@ -84,28 +82,4 @@ export function setMood(mood: Mood) {
 }
 export function setHidden(hidden: boolean) {
   set(() => ({ hidden, ...(hidden ? { bubble: null, queue: [] } : {}) }));
-}
-
-const today = () => new Date().toISOString().slice(0, 10);
-
-export function setCap(ens: string, cap: Omit<Cap, "spentUsd" | "day">) {
-  set((s) => ({ caps: { ...s.caps, [ens]: { ...cap, spentUsd: 0, day: today() } } }));
-}
-export function clearCap(ens: string) {
-  set((s) => ({ caps: Object.fromEntries(Object.entries(s.caps).filter(([k]) => k !== ens)) }));
-}
-
-/** Room left under today's cap (resets daily, like the AgentCap's per-day limit). */
-export function capRoom(ens: string): number {
-  const c = state.caps[ens];
-  if (!c || c.mode !== "auto") return 0;
-  return c.day === today() ? c.perDayUsd - c.spentUsd : c.perDayUsd;
-}
-export function spend(ens: string, usd: number) {
-  set((s) => {
-    const c = s.caps[ens];
-    if (!c) return {};
-    const spent = c.day === today() ? c.spentUsd : 0;
-    return { caps: { ...s.caps, [ens]: { ...c, spentUsd: spent + usd, day: today() } } };
-  });
 }

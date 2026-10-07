@@ -3,18 +3,17 @@
 import { useEffect, useState } from "react";
 import { toggleStart, openSystem, useOS } from "@/os/store";
 import { openWelcome } from "@/os/welcomeStore";
-import { greet, onBsodChanged, onWindowsChanged, watchInstalls } from "./brain";
+import { greet, onWindowsChanged, suggestWhenIdle, watchInstalls } from "./brain";
 import { type Bubble, dismiss, hydrateAssistant, type Mood, say, setHidden, useAssistant } from "./store";
 
 /**
  * Tappy: the OS-wide assistant, docked bottom-right. An original character (a transit IC card with
- * eyes), in the spirit of the Office Assistant: it fidgets while idle, speaks only in balloons with
- * buttons, and every action it proposes still goes through the fixed Signing dialog or the cap.
+ * eyes), in the spirit of the Office Assistant: it fidgets while idle and speaks only in balloons with
+ * buttons, from fixed templates.
  */
 export function Assistant() {
-  const user = useOS((s) => s.user);
+  const booted = useOS((s) => s.booted);
   const windows = useOS((s) => s.windows);
-  const bsod = useOS((s) => s.bsod);
   const bubble = useAssistant((s) => s.bubble);
   const mood = useAssistant((s) => s.mood);
   const hidden = useAssistant((s) => s.hidden);
@@ -24,12 +23,17 @@ export function Assistant() {
     return watchInstalls();
   }, []);
   useEffect(() => {
-    if (!user) return;
-    const t = setTimeout(() => greet(user), 1200);
+    if (!booted) return;
+    const t = setTimeout(greet, 1200);
     return () => clearTimeout(t);
-  }, [user]);
+  }, [booted]);
   useEffect(() => onWindowsChanged(), [windows]);
-  useEffect(() => onBsodChanged(), [bsod]);
+  // 25 s with nothing open → one prompt idea. Any window change restarts the clock.
+  useEffect(() => {
+    if (!booted) return;
+    const t = setTimeout(suggestWhenIdle, 25_000);
+    return () => clearTimeout(t);
+  }, [booted, windows]);
 
   if (hidden) {
     return (
@@ -56,8 +60,8 @@ function menu() {
     text: "",
     choices: [
       { id: "start", label: "Make an app" },
-      { id: "task", label: "See what my agents are doing" },
-      { id: "welcome", label: "What is Suica OS?" },
+      { id: "task", label: "See what is running" },
+      { id: "welcome", label: "What is Jev OS?" },
       { id: "hide", label: "Hide Tappy" },
     ],
     defaultChoice: "start",
