@@ -1,24 +1,25 @@
 # Jev OS — web
 
-Next.js 16 · React 19 · TypeScript · GSAP · `@typesafe-ai/sdk` (Jev, routed through Vercel AI Gateway) · zod · vitest. No UI framework — the Win98 kit is hand-written CSS.
+Next.js 16 · React 19 · TypeScript · GSAP · OpenAI Decisions API (Jev) · zod · vitest. No UI framework — the Win98 kit is hand-written CSS.
 
 ## Run it
 
 ```bash
 pnpm install
 # web/.env.local
-#   AI_GATEWAY_API_KEY=…   Jev (needs paid gateway credits; the free tier blocks typesafe-ai/jev)
+#   OPENAI_API_KEY=…       Jev (OpenAI Decisions API, gpt-6-luna)
 #   GEMINI_API_KEY=…       app content + pictures
+#   AI_GATEWAY_API_KEY=…   optional: LLM-written programs ("tetris but …") via Vercel AI Gateway
 pnpm dev                   # http://localhost:3000
 ```
 
-Without `AI_GATEWAY_API_KEY` the offline keyword classifier answers instead, and the Start menu shows an "offline" chip.
+Without `OPENAI_API_KEY` the offline keyword classifier answers instead, and the Start menu shows an "offline" chip.
 
 ## How a prompt becomes an app
 
 ```
 Start search keystroke
-  → /api/intent        Jev: one call, 5 typed questions in parallel (shell, shape, vibe, scene, nonsense)
+  → /api/intent        Jev: one OpenAI Decisions call, 5 questions in parallel (shell, shape, vibe, scene, nonsense)
                        offline fallback: src/lib/intent/mock.ts, same shape
   → topCombos / draftManifest   shell × shape × vibe + prompt   (src/lib/compose/compose.ts)
   → Start preview      the chosen shell renders a skeleton of that shape   (src/lib/compose/skeleton.ts)

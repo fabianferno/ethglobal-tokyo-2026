@@ -155,7 +155,7 @@ function Page({ id, tryIt }: { id: string; tryIt: (q: string) => void }) {
         <>
           <ol style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6, fontSize: 13 }}>
             <li>
-              <b>You type.</b> On every keystroke, <b>Jev</b> (TypeSafe AI) answers a handful of typed questions in parallel: which program, what shape of content, what tone, which animation. It never writes text or UI. <b>Code builds the window</b> from those answers.
+              <b>You type.</b> On every keystroke, <b>Jev</b> answers a handful of typed questions in parallel, in one call to the OpenAI Decisions API: which program, what shape of content, what tone, which animation. It never writes text or UI. <b>Code builds the window</b> from those answers.
             </li>
             <li>
               <b>You press Enter.</b> The window opens instantly in the right shape, and <b>Gemini</b> writes the content into it: the rows, the board, the poem, the roast.
@@ -165,7 +165,7 @@ function Page({ id, tryIt }: { id: string; tryIt: (q: string) => void }) {
             </li>
           </ol>
           <P>
-            <span className="muted">Jev by TypeSafe AI, via Vercel AI Gateway · content and pictures by Gemini.</span>
+            <span className="muted">Jev on the OpenAI Decisions API (gpt-6-luna) · content and pictures by Gemini.</span>
           </P>
         </>
       );

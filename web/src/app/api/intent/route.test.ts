@@ -5,7 +5,7 @@ vi.mock("@/lib/intent/client", async () => {
   return {
     APIUserAbortError: class extends Error {},
     jevMode: () => "online",
-    classifyWithJev: async () => noneResult({ source: "jev", model: "typesafe-ai/jev", signals: { nonsense: 0 } }),
+    classifyWithJev: async () => noneResult({ source: "jev", model: "gpt-6-luna", signals: { nonsense: 0 } }),
   };
 });
 

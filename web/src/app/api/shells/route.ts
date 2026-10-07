@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, label: b.label }, { status: 202 });
   }
 
-  if (!hasGenerator()) return Response.json({ error: "shell generator not configured (AI_GATEWAY_API_KEY)" }, { status: 503 });
+  if (!hasGenerator()) return Response.json({ error: "program generator not configured (AI_GATEWAY_API_KEY)" }, { status: 503 });
   const rl = rateLimit(`genshell:${clientKey(request)}`, 8, 10 * 60_000);
   if (!rl.ok) return tooMany(rl.retryAfterMs);
   // Paid generations: a global budget no header can reset.

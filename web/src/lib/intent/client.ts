@@ -1,9 +1,15 @@
 import "server-only";
-import { APIUserAbortError, TypeSafeClient } from "@typesafe-ai/sdk";
-import { baseQuestions } from "./questions";
+import { type ChoiceQuestion, QUESTIONS } from "./questions";
 import type { Answer, IntentResult } from "./types";
 
-let client: TypeSafeClient | null = null;
+/**
+ * Jev = our composer, answered by the OpenAI Decisions API (`POST /v1/decisions`, gpt-6-luna): every
+ * question in one request, each answer a choice or a probability. With no key, the offline classifier answers.
+ */
+const DECISIONS_URL = "https://api.openai.com/v1/decisions";
+const DEFAULT_MODEL = "gpt-6-luna";
+/** One fast attempt: a stale answer is worse than falling back to the offline classifier. */
+const TIMEOUT_MS = 2500;
 
 /** A real-looking key: not empty and not a copied placeholder. */
 function looksLikeKey(key: string | undefined): key is string {
@@ -11,59 +17,75 @@ function looksLikeKey(key: string | undefined): key is string {
   return k.length >= 12 && !/\.\.\.|your|xxx|placeholder|changeme|<|>/i.test(k);
 }
 
-/**
- * Jev goes through Vercel AI Gateway (TypeSafe-compatible endpoint). A direct TypeSafe key
- * still works as a fallback; with neither, the offline classifier answers.
- */
-const GATEWAY_URL = "https://ai-gateway.vercel.sh/typesafe";
-
-function route(): { apiKey: string; baseURL?: string; model: string } | null {
+function apiKey(): string | null {
   if (process.env.NEXT_PUBLIC_USE_MOCK === "true") return null;
-  if (looksLikeKey(process.env.AI_GATEWAY_API_KEY)) {
-    return { apiKey: process.env.AI_GATEWAY_API_KEY, baseURL: GATEWAY_URL, model: process.env.JEV_MODEL || "typesafe-ai/jev" };
-  }
-  if (looksLikeKey(process.env.TYPESAFE_API_KEY)) {
-    return { apiKey: process.env.TYPESAFE_API_KEY, model: process.env.JEV_MODEL || "jev-latest" };
-  }
-  return null;
+  const k = process.env.OPENAI_API_KEY;
+  return looksLikeKey(k) ? k.trim() : null;
 }
 
 export function jevMode(): "online" | "offline" {
-  return route() ? "online" : "offline";
+  return apiKey() ? "online" : "offline";
 }
 
-function getClient() {
-  const r = route()!;
-  client ??= new TypeSafeClient({
-    apiKey: r.apiKey,
-    baseURL: r.baseURL,
-    defaultModel: r.model,
-    // One fast attempt: a stale answer is worse than falling back to the offline classifier.
-    retry: { maxRetries: 0 },
-    timeout: 2500,
+type DecisionAnswer =
+  | { type: "choice"; name: string; choice: string; confidence: number; probabilities: (number | { value: string; probability: number })[] }
+  | { type: "predicate"; name: string; probability: number }
+  | { type: "score" | "refusal"; name: string };
+
+const CHOICES = Object.fromEntries(QUESTIONS.filter((q): q is ChoiceQuestion => q.type === "choice").map((q) => [q.name, q.choices.map((c) => c.value)]));
+
+/** A choice answer → our Answer. Probabilities may come as numbers aligned with our choices, or labelled. */
+function choiceAnswer<T extends string>(answers: DecisionAnswer[], name: string): Answer<T> {
+  const a = answers.find((x) => x.name === name);
+  const options = CHOICES[name];
+  if (!a || a.type !== "choice" || !options.includes(a.choice)) throw new Error(`decisions: no usable answer for ${name}`);
+  const probabilities: Partial<Record<T, number>> = {};
+  a.probabilities.forEach((p, i) => {
+    if (typeof p === "number") {
+      if (options[i]) probabilities[options[i] as T] = p;
+    } else if (options.includes(p.value)) probabilities[p.value as T] = p.probability;
   });
-  return client;
+  if (!Object.keys(probabilities).length) probabilities[a.choice as T] = a.confidence;
+  return { value: a.choice as T, confidence: a.confidence, probabilities };
 }
 
-function answer<T extends string>(r: { choice: T; confidence: number; probabilities: { readonly [k in T]: number } }): Answer<T> {
-  return { value: r.choice, confidence: r.confidence, probabilities: { ...r.probabilities } as Partial<Record<T, number>> };
+function predicate(answers: DecisionAnswer[], name: string): number {
+  const a = answers.find((x) => x.name === name);
+  if (!a || a.type !== "predicate") throw new Error(`decisions: no usable answer for ${name}`);
+  return a.probability;
 }
+
+export class APIUserAbortError extends Error {}
 
 /** One call, every question in parallel. */
-export async function classifyWithJev(text: string, signal?: AbortSignal): Promise<IntentResult> {
+export async function classifyWithJev(text: string, signal?: AbortSignal, f: typeof fetch = fetch): Promise<IntentResult> {
+  const key = apiKey();
+  if (!key) throw new Error("OPENAI_API_KEY is not set");
+  const model = process.env.JEV_MODEL || DEFAULT_MODEL;
   const started = performance.now();
-  const res = await getClient().systemOne({ state: { text }, questions: baseQuestions }, { signal });
-  const a = res.answers;
+  let res: Response;
+  try {
+    res = await f(DECISIONS_URL, {
+      method: "POST",
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({ model, input: text, questions: QUESTIONS }),
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT_MS)]) : AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch (e) {
+    if (signal?.aborted) throw new APIUserAbortError("aborted");
+    throw e;
+  }
+  const j = (await res.json().catch(() => ({}))) as { answers?: DecisionAnswer[]; error?: { message?: string } };
+  if (!res.ok || !j.answers) throw new Error(`decisions ${res.status}: ${j.error?.message?.slice(0, 160) ?? "no answers"}`);
+  const a = j.answers;
   return {
-    shell: answer(a.shell),
-    shape: answer(a.shape),
-    vibe: answer(a.vibe),
-    scene: answer(a.scene),
-    signals: { nonsense: a.nonsense.noul },
+    shell: choiceAnswer(a, "shell"),
+    shape: choiceAnswer(a, "shape"),
+    vibe: choiceAnswer(a, "vibe"),
+    scene: choiceAnswer(a, "scene"),
+    signals: { nonsense: predicate(a, "nonsense") },
     latencyMs: Math.round(performance.now() - started),
-    model: res.model,
+    model,
     source: "jev",
   };
 }
-
-export { APIUserAbortError };

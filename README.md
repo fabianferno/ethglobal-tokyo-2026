@@ -1,6 +1,6 @@
 # Jev OS
 
-A Windows‑98‑styled desktop where **anything you type becomes an app**. Nothing on it was built as an app: every window is composed while you type by **Jev** (TypeSafe AI), and **Gemini** writes what goes inside.
+A Windows‑98‑styled desktop where **anything you type becomes an app**. Nothing on it was built as an app: every window is composed while you type by **Jev** (running on OpenAI's Decisions API), and **Gemini** writes what goes inside.
 
 Type into Start → *"minesweeper but about cats"*, *"excel of the best ramen in tokyo"*, *"paint but roast my monday"*, *"notepad diary of a pirate"*, *"tetris but about sushi"* — and the app takes shape as you type.
 
@@ -22,6 +22,6 @@ We think interfaces will be **generated on demand**: changing in real time, and 
 
 ```bash
 cd web && pnpm install
-# web/.env.local: AI_GATEWAY_API_KEY (Jev, needs paid gateway credits) + GEMINI_API_KEY
+# web/.env.local: OPENAI_API_KEY (Jev) + GEMINI_API_KEY (content); optional AI_GATEWAY_API_KEY (new programs)
 pnpm dev
 ```

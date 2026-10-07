@@ -18,7 +18,7 @@ export function AboutJevOS() {
         </div>
         <p>Every window here is composed live. Jev picks the program, the shape and the tone as you type; Gemini writes what goes inside.</p>
         <p>Nothing is saved. Close a window and the app is gone; type it again and it is made again.</p>
-        <p style={{ fontSize: 11, color: "#555" }}>Interfaces by Jev (TypeSafe AI) via Vercel AI Gateway · content and pictures by Gemini.</p>
+        <p style={{ fontSize: 11, color: "#555" }}>Jev runs on the OpenAI Decisions API (gpt-6-luna) · content and pictures by Gemini.</p>
       </div>
     </div>
   );
