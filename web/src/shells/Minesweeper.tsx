@@ -119,7 +119,7 @@ export function MinesweeperShell({ bundle, preview, run }: ShellProps) {
           <button className="btn" style={{ minWidth: 36, width: 36, height: 34, fontSize: 20, padding: 0 }} onClick={reset} aria-label="Reset"><Face mood={face} /></button>
           <LED value={time} />
         </div>
-        <div ref={board} className="sunken" style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, ${cellPx}px)`, background: "#bdbab5", padding: 2 }}>
+        <div ref={board} className="sunken" style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, ${cellPx}px)`, justifyContent: "center", background: "#bdbab5", padding: 2 }}>
           {g.leverage.map((lev, r) => (
             <Row key={lev}>
               {g.offsets.map((_, c) => {
@@ -164,10 +164,12 @@ export function MinesweeperShell({ bundle, preview, run }: ShellProps) {
               {a.label}
             </button>
           ))}
-          <span className="row" style={{ gap: 4 }}>
-            <b style={{ fontSize: 11 }}>{bundle.gauge?.label}</b>
-            <Progress value={bundle.gauge?.value ?? 0} width={120} />
-          </span>
+          {bundle.gauge && (
+            <span className="row" style={{ gap: 4 }}>
+              <b style={{ fontSize: 11 }}>{bundle.gauge.label}</b>
+              <Progress value={bundle.gauge.value} width={120} />
+            </span>
+          )}
         </div>
       )}
     </div>

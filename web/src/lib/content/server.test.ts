@@ -15,6 +15,10 @@ describe("buildPrompt", () => {
     expect(user).toBe(req.prompt);
   });
 
+  test("asks for a playable board size", () => {
+    expect(buildPrompt({ ...req, shell: "minesweeper", shape: "grid" }).system).toMatch(/6 to 8 rows by 6 to 8 columns/);
+  });
+
   test("keeps the OS out of the content", () => {
     expect(buildPrompt(req).system).toMatch(/Do not mention Windows, Jev OS or computers/);
   });
