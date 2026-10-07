@@ -1,12 +1,11 @@
-import { choice, noul, score } from "@typesafe-ai/sdk";
-import type { Candidate } from "./types";
+import { choice, noul } from "@typesafe-ai/sdk";
 
 /**
  * The Jev question schema. Every question is answered in parallel against the same text,
  * so we ask everything every time (speculative fan-out) and code decides what matters.
  *
  * Rules: criteria are self-contained and non-overlapping, every question has an escape option,
- * and we never ask Jev to extract values, count, or do math — the parser does that.
+ * and we never ask Jev to extract values, count, or do math.
  */
 export const baseQuestions = {
   shell: choice("Which familiar desktop program does the person want this app to look or behave like", {
@@ -21,69 +20,37 @@ export const baseQuestions = {
     unspecified: "No particular program is named or implied",
   }),
 
-  fn: choice("What should the app do with money or crypto", {
-    portfolio: "Show the holdings, balances or net worth of a wallet or person",
-    perps: "Trade leveraged futures or perpetuals, long or short with leverage",
-    dca: "Buy a token repeatedly on a schedule (dollar-cost averaging) or run a grid trading bot",
-    lp: "Provide liquidity to a pool and earn trading fees",
-    yield: "Earn interest or the best savings rate by lending stablecoins",
-    stake: "Stake a token or use liquid staking to earn rewards",
-    loan_guard: "Protect a loan or borrow position from liquidation",
-    club: "A group of people pooling money to invest together and vote on trades",
-    split: "Split bills or shared expenses between friends and settle up",
-    pay: "Send, transfer, tip or pay money OUT to a specific person or wallet — money leaving the user to a recipient. NOT requesting, invoicing, or collecting money FROM someone (that flows the wrong way)",
-    savings_circle: "A rotating savings circle where members contribute and take turns receiving the pot",
-    checkout: "Accept payments as a shop, cafe or merchant, tips or a QR checkout",
-    subscription: "Charge people a recurring membership or subscription fee",
-    allowance: "Give pocket money or an allowance with spending limits to family members",
-    bounty: "Post bounties or tasks and pay the winners",
-    escrow: "Hold a payment in escrow until work is delivered",
-    rsvp: "Event sign-ups or tickets with a refundable deposit",
-    pay_per_call: "Sell data or an API that other agents pay for per request",
-    roast: "Make fun of, roast, judge or meme a portfolio or trading history",
-    market_mood: "Show how the crypto market feels right now: calm, volatile or crashing",
-    journal: "Keep a diary or log of past trades and transactions",
-    price_chart: "Show a token's price chart or graph over time: a price line, candles, price history, or how a coin has been doing",
-    gas: "Show current network gas fees or gas prices: Ethereum gwei, transaction costs, a gas or gwei tracker",
-    compare: "Compare two different wallets or portfolios side by side",
-    markets: "Find where to sell, buy or exchange a token at the best price: compare exchanges, DEXes and chains, liquidate efficiently, arbitrage",
-    none: "Nothing to do with money, or too unclear to tell yet",
+  shape: choice("What kind of content should the app show", {
+    table: "Rows and columns of facts or numbers: a ranking, a comparison, a schedule, a sheet",
+    list: "A short list of items, tips, picks or steps",
+    series: "Numbers changing over time: a trend, a line or bar chart, history",
+    gauge: "One value on a scale with a short forecast: a mood, a level, a rating, a meter",
+    scene: "A punchy poster: a headline, a verdict and a few one-liners, like a roast, a pep talk or a fortune",
+    grid: "A board of cells to uncover or fight through, each with a danger level: a game board",
+    doc: "A piece of writing: a story, a letter, a diary entry, a poem, notes",
+    picture: "Mainly an image or drawing of something",
   }),
 
   vibe: choice("What tone should the app have", {
     serious: "Professional and factual",
     playful: "Fun, game-like or silly",
     roast: "Mocking or sarcastic",
-    hype: "Excited, bullish, to the moon",
+    hype: "Excited and over the top",
     chill: "Calm and relaxed",
   }),
 
   scene: choice("Which animation best fits the app", {
-    coins: "Coins or money flowing, paying, saving",
-    ticker: "Stock ticker, prices or trading",
-    storm: "Danger, crashes, liquidation or volatility",
-    rocket: "Growth, gains, going up",
+    sparkle: "Magic, celebration, stars, something delightful",
+    ticker: "Scrolling numbers, news, scores or data",
+    storm: "Danger, chaos, drama or bad news",
+    rocket: "Growth, speed, launches, going up",
     sakura: "Friends, community, Japan, gentle",
-    pool: "Pools, liquidity, water, yield",
-    fire: "Roasting, burning, degen",
+    pool: "Water, travel, summer, calm",
+    fire: "Roasting, intensity, heat",
     none: "No animation fits",
   }),
 
-  readOnly: noul("The person wants to look at someone else's wallet or data, not act on their own funds"),
-  recurring: noul("The app does something repeatedly on a schedule"),
-  nonsense: noul("The text asks for something unrelated to apps, money or crypto, or is gibberish"),
-  risk: score("How much could this app lose the person's money", [
-    "Read-only or no money at risk",
-    "Moves money but with predictable outcomes",
-    "Leverage, trading or speculation that can lose a lot",
-  ]),
+  nonsense: noul("The text is gibberish or is not a request for any kind of app, game, document or picture"),
 };
-
-/** One yes/no per published-app candidate, asked in the same call. */
-export function matchQuestions(candidates: Candidate[]) {
-  return Object.fromEntries(
-    candidates.map((c, i) => [`m${i}`, noul(`An app described as "${c.description}" does what the person is asking for`)]),
-  );
-}
 
 export const QUESTION_COUNT = Object.keys(baseQuestions).length;

@@ -1,7 +1,7 @@
 import "server-only";
 import { APIUserAbortError, TypeSafeClient } from "@typesafe-ai/sdk";
-import { baseQuestions, matchQuestions } from "./questions";
-import type { Answer, Candidate, IntentResult } from "./types";
+import { baseQuestions } from "./questions";
+import type { Answer, IntentResult } from "./types";
 
 let client: TypeSafeClient | null = null;
 
@@ -49,27 +49,17 @@ function answer<T extends string>(r: { choice: T; confidence: number; probabilit
   return { value: r.choice, confidence: r.confidence, probabilities: { ...r.probabilities } as Partial<Record<T, number>> };
 }
 
-/** One call, every question in parallel — including one yes/no per published-app candidate. */
-export async function classifyWithJev(text: string, candidates: Candidate[], signal?: AbortSignal): Promise<IntentResult> {
+/** One call, every question in parallel. */
+export async function classifyWithJev(text: string, signal?: AbortSignal): Promise<IntentResult> {
   const started = performance.now();
-  const res = await getClient().systemOne(
-    { state: { text }, questions: { ...baseQuestions, ...matchQuestions(candidates) } },
-    { signal },
-  );
+  const res = await getClient().systemOne({ state: { text }, questions: baseQuestions }, { signal });
   const a = res.answers;
-  const matches: Record<string, number> = {};
-  candidates.forEach((c, i) => {
-    const m = (a as Record<string, unknown>)[`m${i}`] as { noul: number } | undefined;
-    if (m) matches[c.id] = m.noul;
-  });
-
   return {
     shell: answer(a.shell),
-    fn: answer(a.fn),
+    shape: answer(a.shape),
     vibe: answer(a.vibe),
     scene: answer(a.scene),
-    signals: { readOnly: a.readOnly.noul, recurring: a.recurring.noul, nonsense: a.nonsense.noul, risk: a.risk.score },
-    matches,
+    signals: { nonsense: a.nonsense.noul },
     latencyMs: Math.round(performance.now() - started),
     model: res.model,
     source: "jev",

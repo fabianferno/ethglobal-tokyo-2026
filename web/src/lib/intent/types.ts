@@ -1,46 +1,19 @@
 /**
  * Shared vocabulary between Jev (server), the offline classifier and the composer.
- * Every prompt = SHELL (a familiar Win98 app) × FN (a crypto capability) × TARGET × VIBE.
+ * Every prompt = SHELL (a familiar Win98 program) × SHAPE (what the content is) × VIBE × SCENE.
  */
 
 export const SHELL_KEYS = ["excel", "minesweeper", "doom", "paint", "weather", "notepad", "hologram", "explorer", "unspecified"] as const;
 export type ShellKey = (typeof SHELL_KEYS)[number];
 export type ConcreteShell = Exclude<ShellKey, "unspecified">;
 
-export const FN_KEYS = [
-  "portfolio",
-  "perps",
-  "dca",
-  "lp",
-  "yield",
-  "stake",
-  "loan_guard",
-  "club",
-  "split",
-  "pay",
-  "savings_circle",
-  "checkout",
-  "subscription",
-  "allowance",
-  "bounty",
-  "escrow",
-  "rsvp",
-  "pay_per_call",
-  "roast",
-  "market_mood",
-  "journal",
-  "price_chart",
-  "gas",
-  "compare",
-  "markets",
-  "none",
-] as const;
-export type FnKey = (typeof FN_KEYS)[number];
+export const SHAPE_KEYS = ["table", "list", "series", "gauge", "scene", "grid", "doc", "picture"] as const;
+export type ShapeKey = (typeof SHAPE_KEYS)[number];
 
 export const VIBES = ["serious", "playful", "roast", "hype", "chill"] as const;
 export type Vibe = (typeof VIBES)[number];
 
-export const SCENES = ["coins", "ticker", "storm", "rocket", "sakura", "pool", "fire", "none"] as const;
+export const SCENES = ["sparkle", "ticker", "storm", "rocket", "sakura", "pool", "fire", "none"] as const;
 export type SceneKey = (typeof SCENES)[number];
 
 export type Answer<T extends string> = {
@@ -51,19 +24,10 @@ export type Answer<T extends string> = {
 
 export type IntentResult = {
   shell: Answer<ShellKey>;
-  fn: Answer<FnKey>;
+  shape: Answer<ShapeKey>;
   vibe: Answer<Vibe>;
   scene: Answer<SceneKey>;
-  signals: {
-    /** Probability the person wants to look at someone else's data rather than act on their own funds. */
-    readOnly: number;
-    recurring: number;
-    nonsense: number;
-    /** 0..2 expected score: how risky this app is for the person's money. */
-    risk: number;
-  };
-  /** Published-app candidate id → probability it does what the person wants. */
-  matches: Record<string, number>;
+  signals: { nonsense: number };
   latencyMs: number;
   model: string;
   source: "jev" | "mock" | "none";
@@ -71,17 +35,14 @@ export type IntentResult = {
   error?: boolean;
 };
 
-export type Candidate = { id: string; description: string };
-
 export function noneResult(extra: Partial<IntentResult> = {}): IntentResult {
   const a = <T extends string>(value: T): Answer<T> => ({ value, confidence: 1, probabilities: { [value]: 1 } as Partial<Record<T, number>> });
   return {
     shell: a<ShellKey>("unspecified"),
-    fn: a<FnKey>("none"),
+    shape: a<ShapeKey>("list"),
     vibe: a<Vibe>("serious"),
     scene: a<SceneKey>("none"),
-    signals: { readOnly: 0, recurring: 0, nonsense: 0, risk: 0 },
-    matches: {},
+    signals: { nonsense: 1 },
     latencyMs: 0,
     model: "none",
     source: "none",
