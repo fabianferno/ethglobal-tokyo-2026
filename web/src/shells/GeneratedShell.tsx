@@ -8,14 +8,15 @@ import type { ShellProps } from "./AppFrame";
 
 /**
  * An LLM-written shell, running as an untrusted guest: sandboxed iframe (opaque origin, no network),
- * real data pushed in, and the only way out is proposing one of the bundle's own actions by id —
- * which then goes through the fixed Signing dialog like any other app.
+ * content pushed in, and the only way out is asking for one of the bundle's own actions by id.
+ * If the frame ever navigates away from its srcdoc (a second load), it is dropped for the built-in shell.
  */
 export function GeneratedShell({ app, bundle, preview, run, shell, fallback }: ShellProps & { shell: ShellInfo; fallback: React.ReactNode }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [html, setHtml] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const loads = useRef(0);
 
   useEffect(() => {
     let ok = true;
@@ -57,7 +58,12 @@ export function GeneratedShell({ app, bundle, preview, run, shell, fallback }: S
             title={shell.exe}
             sandbox={SANDBOX}
             srcDoc={srcdoc}
-            onLoad={() => setLoaded(true)}
+            onLoad={() => {
+              // srcdoc loads exactly once; any later load means the guest navigated itself somewhere.
+              loads.current += 1;
+              if (loads.current > 1) setFailed("navigated away from its sandbox");
+              else setLoaded(true);
+            }}
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0, pointerEvents: preview ? "none" : "auto" }}
           />
         )}

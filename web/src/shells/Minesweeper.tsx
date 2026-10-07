@@ -78,7 +78,7 @@ export function MinesweeperShell({ bundle, preview, run }: ShellProps) {
   };
 
   const reveal = (r: number, c: number) => {
-    if (preview || dead || state[r][c] !== "hidden") return;
+    if (preview || dead || (state[r]?.[c] ?? "hidden") !== "hidden") return;
     const cell = g.cells[r][c];
     if (cell.mine) {
       setState((s) => s.map((row, i) => row.map((v, j) => (g.cells[i][j].mine ? (i === r && j === c ? "boom" : "open") : v))));
@@ -106,7 +106,7 @@ export function MinesweeperShell({ bundle, preview, run }: ShellProps) {
   const flag = (r: number, c: number) => {
     if (preview || dead) return;
     setState((s) => s.map((row, i) => row.map((v, j) => (i === r && j === c ? (v === "flag" ? "hidden" : v === "hidden" ? "flag" : v) : v))));
-    if (state[r][c] === "hidden") balloon("Flagged", g.cells[r][c].label);
+    if ((state[r]?.[c] ?? "hidden") === "hidden") balloon("Flagged", g.cells[r][c].label);
   };
 
   const cellPx = preview ? 24 : 34;
@@ -123,7 +123,8 @@ export function MinesweeperShell({ bundle, preview, run }: ShellProps) {
           {g.leverage.map((lev, r) => (
             <Row key={lev}>
               {g.offsets.map((_, c) => {
-                const s = state[r][c];
+                // A board can be bigger than the one state was sized for (new content): unknown cells start hidden.
+                const s = state[r]?.[c] ?? "hidden";
                 const n = around(r, c);
                 const isSel = sel?.r === r && sel?.c === c;
                 const hidden = s === "hidden" || s === "flag";

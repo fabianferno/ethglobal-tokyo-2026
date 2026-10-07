@@ -2,6 +2,7 @@ import { z } from "zod";
 import { APIUserAbortError, classifyWithJev, jevMode } from "@/lib/intent/client";
 import { mockClassify } from "@/lib/intent/mock";
 import { type IntentResult, noneResult } from "@/lib/intent/types";
+import { clientKey, rateLimit } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,8 @@ export async function POST(request: Request) {
   if (hit) return Response.json({ ...hit, cached: true } satisfies IntentResult);
 
   if (jevMode() === "offline") return Response.json(mockClassify(text));
+  // Every keystroke is a paid Jev call: past the per-client budget, answer offline (the Start menu shows the chip).
+  if (!rateLimit(`intent:${clientKey(request)}`, 120, 60_000).ok) return Response.json(mockClassify(text));
 
   try {
     const result = await classifyWithJev(text, request.signal);

@@ -25,3 +25,18 @@ test("server error rejects with its message and is not cached", async () => {
   await fetchContent(app, 20, good);
   expect(good).toHaveBeenCalledTimes(1);
 });
+
+test.each([
+  [429, { error: "rate limited — retry in 12s" }, "Too many apps at once. Wait a few seconds and try again."],
+  [400, { error: "Expected { prompt, shell, shape, vibe, nonce? }" }, "That prompt can't be turned into an app."],
+  [502, { error: "Couldn't write this one." }, "Couldn't write this one."],
+])("HTTP %i shows people a plain sentence", async (status, body, shown) => {
+  await expect(fetchContent(app, 100 + status, ok(body, status))).rejects.toThrow(shown);
+});
+
+test("a timeout or dropped connection shows a plain sentence", async () => {
+  const boom = vi.fn(async () => {
+    throw new DOMException("signal timed out", "TimeoutError");
+  }) as unknown as typeof fetch;
+  await expect(fetchContent(app, 900, boom)).rejects.toThrow("Gemini took too long. Try again.");
+});

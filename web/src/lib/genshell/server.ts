@@ -88,6 +88,9 @@ const FORBIDDEN: [RegExp, string][] = [
   [/localStorage|sessionStorage|indexedDB|document\.cookie/, "storage"],
   [/\beval\s*\(|new\s+Function\s*\(/, "eval"],
   [/\bwindow\.(?:parent|top|opener)\b|\bparent\.postMessage|\btop\.location/, "parent/top access"],
+  // The sandbox still lets a frame navigate itself: a page loaded that way has no CSP and could leak the prompt.
+  [/\blocation\s*\.\s*(?:href|assign|replace)\b|\blocation\s*=|http-equiv\s*=\s*["']?refresh|\bdocument\.write\s*\(/i, "navigation"],
+  [/<a\b[^>]*\bhref\s*=|<form\b|\bwindow\.open\s*\(/i, "links"],
 ];
 
 export function checkHtml(html: string): string | null {

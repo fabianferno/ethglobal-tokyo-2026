@@ -86,8 +86,12 @@ const titleFrom = (prompt: string) => {
   return s.length > 40 ? `${s.slice(0, 39)}…` : s || "Untitled";
 };
 
+/** The longest prompt the intent and content APIs accept. */
+export const MAX_PROMPT = 400;
+
 export function draftManifest(opts: { prompt: string; intent: IntentResult; params: Params; combo?: Combo }): AppManifest {
-  const { prompt, intent } = opts;
+  const { intent } = opts;
+  const prompt = opts.prompt.trim().slice(0, MAX_PROMPT);
   const shape = opts.combo?.shape ?? intent.shape.value;
   const shell = opts.combo?.shell ?? resolveShell(intent.shell.value, shape);
   const params = shape === "picture" && !opts.params.image ? { ...opts.params, image: prompt.trim() } : opts.params;

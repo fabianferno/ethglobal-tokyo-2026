@@ -30,3 +30,9 @@ describe("draftManifest", () => {
     expect(m.params.image).toBe("mt fuji at sunset");
   });
 });
+
+test("a pasted paragraph is trimmed to what the APIs accept", () => {
+  const prompt = "excel of ".concat("ramen shops and their broths ".repeat(30));
+  const m = draftManifest({ prompt, intent: mockClassify(prompt), params: parse(prompt) });
+  expect(m.prompt.length).toBeLessThanOrEqual(400);
+});

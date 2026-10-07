@@ -2,7 +2,7 @@
 
 import gsap from "gsap";
 import { useLayoutEffect, useRef, useState } from "react";
-import { BarChart } from "@/components/win99/Widgets";
+import { BarChart, fmt } from "@/components/win99/Widgets";
 import type { ShellProps } from "./AppFrame";
 import { PictureStatus } from "./Picture";
 
@@ -114,7 +114,7 @@ export function PaintShell({ app, bundle, preview, picture, run }: ShellProps) {
                 const X = (i: number) => 56 + (i / Math.max(1, pts.length - 1)) * 544;
                 const Y = (v: number) => 372 - ((v - min) / span) * 300;
                 const d = pts.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
-                const fmtV = (v: number) => (bundle.series!.unit === "pct" ? `${v.toFixed(1)}%` : v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : v >= 1 ? `$${v.toFixed(2)}` : `$${v.toPrecision(3)}`);
+                const fmtV = (v: number) => fmt(v, "num", bundle.series!.unit);
                 return (
                   <>
                     <rect width="640" height="420" fill="#fffdf2" />

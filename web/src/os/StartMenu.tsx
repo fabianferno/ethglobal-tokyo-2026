@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/win99/Icon";
-import { type AppManifest, draftManifest, SHELL_META, topCombos } from "@/lib/compose/compose";
+import { type AppManifest, draftManifest, MAX_PROMPT, SHELL_META, topCombos } from "@/lib/compose/compose";
 import { paramChips, parse } from "@/lib/intent/parse";
 import { topK } from "@/lib/intent/types";
 import { ShellView } from "@/shells/AppFrame";
@@ -118,6 +118,7 @@ export function StartMenu() {
               ref={input}
               className="field grow"
               placeholder="Search or describe an app…"
+              maxLength={MAX_PROMPT}
               value={q}
               onChange={(e) => (setQ(e.target.value), setHot(0))}
               onKeyDown={(e) => {

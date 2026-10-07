@@ -9,15 +9,23 @@ export function fetchContent(app: AppManifest, nonce: number, f: typeof fetch = 
   const hit = cache.get(key);
   if (hit) return hit;
   const p = (async () => {
-    const res = await f("/api/content", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prompt: app.prompt, shell: app.shell, shape: app.shape, vibe: app.vibe, nonce }),
-      signal: AbortSignal.timeout(25_000),
-    });
+    let res: Response;
+    try {
+      res = await f("/api/content", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt: app.prompt, shell: app.shell, shape: app.shape, vibe: app.vibe, nonce }),
+        signal: AbortSignal.timeout(25_000),
+      });
+    } catch {
+      throw new Error("Gemini took too long. Try again.");
+    }
     const j = (await res.json().catch(() => ({}))) as { bundle?: Bundle; error?: string };
-    if (!res.ok || !j.bundle) throw new Error(j.error ?? `content ${res.status}`);
-    return j.bundle;
+    if (res.ok && j.bundle) return j.bundle;
+    // People see this sentence in the window, so never show them a raw API message.
+    if (res.status === 429) throw new Error("Too many apps at once. Wait a few seconds and try again.");
+    if (res.status === 400) throw new Error("That prompt can't be turned into an app.");
+    throw new Error("Couldn't write this one.");
   })();
   cache.set(key, p);
   p.catch(() => cache.delete(key));

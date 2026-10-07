@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Component, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/win99/Icon";
 import { MenuBar, type MenuEntry } from "@/components/win99/Menu";
 import { type AppManifest, SHELL_META } from "@/lib/compose/compose";
@@ -43,7 +43,7 @@ export type ContentState =
   | { status: "error"; bundle: Bundle; error: string };
 
 /** Skeleton instantly; Gemini's content when it lands. Previews never call Gemini. */
-export function useContent(app: AppManifest, preview: boolean): ContentState & { regenerate: () => void } {
+export function useContent(app: AppManifest, preview: boolean): ContentState & { nonce: number; regenerate: () => void } {
   const skeleton = useMemo(() => skeletonBundle(app.shape, app.title), [app.shape, app.title]);
   const [nonce, setNonce] = useState(0);
   const [state, setState] = useState<{ key: string; s: ContentState } | null>(null);
@@ -59,7 +59,7 @@ export function useContent(app: AppManifest, preview: boolean): ContentState & {
     };
   }, [app, nonce, preview, key, skeleton]);
   const s: ContentState = state?.key === key ? state.s : { status: "loading", bundle: skeleton };
-  return { ...s, regenerate: () => setNonce((n) => n + 1) };
+  return { ...s, nonce, regenerate: () => setNonce((n) => n + 1) };
 }
 
 function ContentFailed({ error, retry }: { error: string; retry: () => void }) {
@@ -77,6 +77,18 @@ function ContentFailed({ error, retry }: { error: string; retry: () => void }) {
   );
 }
 
+/** One broken shell must never take the OS down: catch render errors per window and offer a retry. */
+class ShellBoundary extends Component<{ children: ReactNode; retry?: () => void }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return <ContentFailed error="This app crashed while drawing." retry={() => (this.setState({ failed: false }), this.props.retry?.())} />;
+  }
+}
+
 /**
  * The app's body: scene strip + shell (or its generated program). In a window it gets live content;
  * in the Start-menu preview it shows the skeleton only.
@@ -91,14 +103,19 @@ export function ShellView({ app, preview, content }: { app: AppManifest; preview
   const run = preview || !content ? () => {} : (a: Action) => (a.id === "regenerate" ? content.regenerate() : balloon(a.label, "Not available in this app yet."));
   const picture = usePicture(app, !preview);
   const paintsItself = app.shell === "paint" && !generated;
-  const builtIn = <Shell app={app} bundle={bundle} preview={preview} run={run} picture={picture} />;
+  // Stateful shells (Notepad's text, Minesweeper's board, Doom's HUD) seed state from their first bundle:
+  // remount them whenever new content lands so they never keep showing the skeleton.
+  const contentKey = content ? `${content.status}:${content.nonce}` : "preview";
+  const builtIn = <Shell key={contentKey} app={app} bundle={bundle} preview={preview} run={run} picture={picture} />;
   return (
     <>
       <SceneStrip kind={app.scene} height={preview ? 40 : 52} label={bundle.subtitle} />
       {content?.status === "error" && <ContentFailed error={content.error} retry={content.regenerate} />}
       {picture && !paintsItself && <PictureFrame pic={picture} preview={preview} />}
       <div className="grow" style={{ display: "flex", flexDirection: "column", marginTop: 3, minHeight: 0 }}>
-        {generated ? <GeneratedShell key={generated.label} app={app} bundle={bundle} preview={preview} run={run} shell={generated} fallback={builtIn} /> : builtIn}
+        <ShellBoundary key={contentKey} retry={content?.regenerate}>
+          {generated ? <GeneratedShell key={generated.label} app={app} bundle={bundle} preview={preview} run={run} shell={generated} fallback={builtIn} /> : builtIn}
+        </ShellBoundary>
       </div>
     </>
   );
