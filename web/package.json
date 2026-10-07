@@ -15,7 +15,8 @@
     "sui:publish": "tsx scripts/sui-publish.ts",
     "sui:smoke": "tsx scripts/sui-smoke.ts",
     "sui:topup": "tsx scripts/sui-topup.ts",
-    "sui:test": "docker run --rm -v \"$PWD/move\":/work mysten/sui-tools:testnet sui move test --path /work/suica_vault"
+    "sui:test": "docker run --rm -v \"$PWD/move\":/work mysten/sui-tools:testnet sui move test --path /work/suica_vault",
+    "test": "vitest run"
   },
   "dependencies": {
     "@mysten/enoki": "^1.2.28",
@@ -36,6 +37,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }
