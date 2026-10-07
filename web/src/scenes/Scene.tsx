@@ -2,7 +2,6 @@
 
 import gsap from "gsap";
 import { useLayoutEffect, useRef } from "react";
-import { PRICES } from "@/lib/chain/mock";
 import type { SceneKey } from "@/lib/intent/types";
 
 /**
@@ -13,7 +12,7 @@ import type { SceneKey } from "@/lib/intent/types";
 const W = 800;
 
 const BG: Record<Exclude<SceneKey, "none">, string> = {
-  coins: "linear-gradient(#1c3fa6, #2f63d8)",
+  sparkle: "linear-gradient(#2a1a6e, #5b3fd0)",
   ticker: "linear-gradient(#050a14, #0e1b33)",
   storm: "linear-gradient(#1a1d29, #3a3f55)",
   rocket: "linear-gradient(#0b1030, #27307a)",
@@ -34,9 +33,10 @@ export function SceneStrip({ kind, height = 54, label }: { kind: SceneKey; heigh
     if (kind === "none" || !root.current) return;
     const ctx = gsap.context(() => {
       const q = gsap.utils.selector(root.current);
-      if (kind === "coins") {
-        q(".coin").forEach((el, i) => {
-          gsap.fromTo(el, { y: -30, x: 40 + i * 70, rotation: 0 }, { y: height - 12, rotation: 360, duration: 1.2 + r(i) * 0.8, ease: "bounce.out", repeat: -1, delay: r(i + 3) * 2, repeatDelay: 0.6 });
+      if (kind === "sparkle") {
+        q(".spark").forEach((el, i) => {
+          gsap.fromTo(el, { y: -16, x: 30 + i * 62, rotation: 0, scale: 0.6 }, { y: height + 10, rotation: 180, scale: 1.2, duration: 2 + r(i) * 1.6, ease: "sine.in", repeat: -1, delay: r(i + 3) * 2 });
+          gsap.to(el, { opacity: 0.3, duration: 0.3 + r(i + 8) * 0.4, yoyo: true, repeat: -1 });
         });
       }
       if (kind === "ticker") {
@@ -73,23 +73,16 @@ export function SceneStrip({ kind, height = 54, label }: { kind: SceneKey; heigh
   return (
     <div className="sunken" style={{ height, flex: "none", overflow: "hidden", background: BG[kind], position: "relative", padding: 0 }}>
       <svg ref={root} width="100%" height={height} viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="xMidYMid slice" style={{ display: "block" }}>
-        {kind === "coins" && (
-          <>
-            <path d={`M${W - 90} ${height - 30}h60l-6 30h-48z`} fill="rgba(255,255,255,.25)" stroke="#fff" />
-            {n(10).map((i) => (
-              <g key={i} className="coin">
-                <ellipse rx="10" ry="10" fill="#f7d417" stroke="#8a6408" strokeWidth="2" />
-                <text y="4" textAnchor="middle" fontSize="11" fontWeight="900" fill="#8a6408">$</text>
-              </g>
-            ))}
-          </>
-        )}
+        {kind === "sparkle" &&
+          n(13).map((i) => (
+            <path key={i} className="spark" d="M0-9l2.5 6.5L9 0l-6.5 2.5L0 9l-2.5-6.5L-9 0l6.5-2.5z" fill={i % 3 ? "#ffe86b" : "#fff"} />
+          ))}
         {kind === "ticker" && (
           <g className="tape">
             {[0, W].map((off) => (
               <text key={off} x={off} y={height / 2 + 5} fontFamily="Lucida Console, monospace" fontSize="15" fontWeight="700">
-                {Object.entries(PRICES).map(([t, p]) => (
-                  <tspan key={t} fill={p.change24h >= 0 ? "#3aff6a" : "#ff4d4d"}>{`  ${t} ${p.price} ${p.change24h >= 0 ? "▲" : "▼"}${Math.abs(p.change24h)}%  `}</tspan>
+                {n(3).map((i) => (
+                  <tspan key={i} fill={i % 2 ? "#ffd84a" : "#3aff6a"}>{`  ▲ ${label ?? "JEV OS"}  `}</tspan>
                 ))}
               </text>
             ))}

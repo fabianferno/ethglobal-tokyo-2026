@@ -344,7 +344,6 @@ input[type="range"].slider::-moz-range-thumb { width: 14px; height: 24px; backgr
 .desk-icon.sel .label { background: var(--select); text-shadow: none; }
 .desk-icon.sel { border-color: rgba(255,255,255,.6); }
 .desk-icon.drop-target { background: rgba(255,255,255,.18); border-color: #fff; }
-.desk-icon .ens { font-size: 10px; opacity: .8; }
 
 .taskbar {
   position: fixed;
@@ -409,22 +408,6 @@ input[type="range"].slider::-moz-range-thumb { width: 14px; height: 24px; backgr
   z-index: 70000;
   font-size: 12px;
 }
-
-.bsod {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: #0b22a8;
-  color: #fff;
-  font-family: var(--font-mono);
-  font-size: 18px;
-  line-height: 1.5;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-}
-.bsod .inner { max-width: 760px; padding: 24px; }
-.bsod .tag { background: #c8c8c8; color: #0b22a8; padding: 0 8px; font-weight: 700; }
 
 /* ── Misc ───────────────────────────────────────────────── */
 .row { display: flex; gap: 8px; align-items: center; }
