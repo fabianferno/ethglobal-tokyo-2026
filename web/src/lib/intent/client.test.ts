@@ -46,6 +46,14 @@ describe("Jev via the OpenAI Decisions API", () => {
     expect(r.scene.value).toBe("sparkle");
   });
 
+  test("confidence falls back to the chosen option's probability (the live API sends no confidence field)", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-1234567890abcdef");
+    const live = ANSWERS.map((a) => (a.type === "choice" ? { type: a.type, name: a.name, choice: a.choice, probabilities: a.name === "shape" ? a.probabilities : [{ value: a.choice, probability: 0.96 }] } : a));
+    const r = await classifyWithJev("x", undefined, ok({ answers: live }));
+    expect(r.shell.confidence).toBe(0.96);
+    expect(r.shape.confidence).toBe(0.88);
+  });
+
   test("an answer outside our options or a refusal is an error (route falls back offline)", async () => {
     vi.stubEnv("OPENAI_API_KEY", "sk-test-1234567890abcdef");
     const bad = ANSWERS.map((a) => (a.name === "shape" ? { type: "refusal", name: "shape" } : a));

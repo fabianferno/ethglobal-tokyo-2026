@@ -8,8 +8,8 @@ import type { Answer, IntentResult } from "./types";
  */
 const DECISIONS_URL = "https://api.openai.com/v1/decisions";
 const DEFAULT_MODEL = "gpt-6-luna";
-/** One fast attempt: a stale answer is worse than falling back to the offline classifier. */
-const TIMEOUT_MS = 2500;
+/** One attempt (warm calls take ~0.5 s; a cold first call can take longer): past this, the offline classifier answers. */
+const TIMEOUT_MS = 4000;
 
 /** A real-looking key: not empty and not a copied placeholder. */
 function looksLikeKey(key: string | undefined): key is string {
@@ -28,7 +28,7 @@ export function jevMode(): "online" | "offline" {
 }
 
 type DecisionAnswer =
-  | { type: "choice"; name: string; choice: string; confidence: number; probabilities: (number | { value: string; probability: number })[] }
+  | { type: "choice"; name: string; choice: string; confidence?: number; probabilities: (number | { value: string; probability: number })[] }
   | { type: "predicate"; name: string; probability: number }
   | { type: "score" | "refusal"; name: string };
 
@@ -45,8 +45,10 @@ function choiceAnswer<T extends string>(answers: DecisionAnswer[], name: string)
       if (options[i]) probabilities[options[i] as T] = p;
     } else if (options.includes(p.value)) probabilities[p.value as T] = p.probability;
   });
-  if (!Object.keys(probabilities).length) probabilities[a.choice as T] = a.confidence;
-  return { value: a.choice as T, confidence: a.confidence, probabilities };
+  // The live API sends labelled probabilities and no confidence: the chosen option's probability is it.
+  const confidence = a.confidence ?? probabilities[a.choice as T] ?? 0;
+  if (!Object.keys(probabilities).length) probabilities[a.choice as T] = confidence;
+  return { value: a.choice as T, confidence, probabilities };
 }
 
 function predicate(answers: DecisionAnswer[], name: string): number {
