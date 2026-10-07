@@ -4,14 +4,15 @@ import { useState } from "react";
 import { fmt } from "@/components/win99/Widgets";
 import type { ShellProps } from "./AppFrame";
 
-/** Notepad shell: List/Table shape → plain text you can actually edit. */
-export function NotepadShell({ app, bundle, preview }: ShellProps) {
+/** Notepad shell: a document, or a list/table turned into plain text you can actually edit. */
+export function NotepadShell({ bundle, preview }: ShellProps) {
   const initial = () => {
     const head = `${bundle.title}\n${"=".repeat(bundle.title.length)}\n${bundle.subtitle}\n\n`;
-    if (bundle.list) return head + bundle.list.items.map((i) => `${i.title}${i.right ? `   ${i.right}` : ""}${i.subtitle ? `\n    ${i.subtitle}` : ""}`).join("\n") + `\n\n-- ${app.ens}`;
+    if (bundle.doc) return head + bundle.doc.text;
+    if (bundle.list) return head + bundle.list.items.map((i) => `${i.title}${i.right ? `   ${i.right}` : ""}${i.subtitle ? `\n    ${i.subtitle}` : ""}`).join("\n");
     if (bundle.table) {
       const t = bundle.table;
-      return head + t.rows.map((r) => t.columns.map((c) => fmt(r[c.key], c.fmt).padEnd(12)).join(" ")).join("\n");
+      return head + t.rows.map((r) => t.columns.map((c) => fmt(r[c.key], c.fmt, c.unit).padEnd(12)).join(" ")).join("\n");
     }
     return head;
   };

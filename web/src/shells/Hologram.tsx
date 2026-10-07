@@ -17,23 +17,21 @@ type Bar = { label: string; value: number };
 // Chunky Win9x chart palette — each bar cycles through it; faces are shaded off a single base hue.
 const PALETTE = ["#12b5b0", "#3f6fd6", "#7d5bd0", "#3fae5a", "#e0a021", "#d6533f", "#4aa3c7", "#c74a9e"];
 
-/** Pull a labelled numeric series out of whatever shape the function produced. */
+/** Pull a labelled numeric series out of whatever shape the content has. */
 function bars(b: ShellProps["bundle"]): { data: Bar[]; unit: string } {
   if (b.table && b.table.rows.length) {
     const rows = b.table.rows;
     const isNum = (k: string) => typeof rows[0][k] === "number";
-    const prefer = ["value", "apy", "alloc", "amount", "pnl", "spend", "cap", "bal", "v", "price", "s"];
-    const numCol = b.table.columns.find((c) => prefer.includes(c.key) && isNum(c.key)) ?? b.table.columns.find((c) => isNum(c.key));
+    const numCol = b.table.columns.find((c) => isNum(c.key));
     const labelCol = b.table.columns.find((c) => typeof rows[0][c.key] === "string") ?? b.table.columns[0];
     if (numCol) {
-      const fmt = numCol.fmt;
       return {
         data: rows.slice(0, 12).map((r) => ({ label: String(r[labelCol.key] ?? "").replace(/\.eth$/, ""), value: Math.abs(Number(r[numCol.key]) || 0) })),
-        unit: fmt === "usd" ? "$" : fmt === "pct" ? "%" : "",
+        unit: numCol.fmt === "pct" ? "%" : (numCol.unit ?? ""),
       };
     }
   }
-  if (b.series) return { data: b.series.points.slice(-16).map((v, i) => ({ label: String(i + 1), value: Math.abs(v) })), unit: b.series.unit === "usd" ? "$" : "%" };
+  if (b.series) return { data: b.series.points.slice(-16).map((v, i) => ({ label: String(i + 1), value: Math.abs(v) })), unit: b.series.unit };
   if (b.gauge) return { data: [{ label: b.gauge.label, value: b.gauge.value }], unit: "" };
   return { data: [], unit: "" };
 }

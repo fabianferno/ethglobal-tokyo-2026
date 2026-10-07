@@ -18,7 +18,7 @@ export function PaintShell({ app, bundle, preview, picture }: ShellProps) {
   const canvas = useRef<SVGSVGElement>(null);
   const scene = bundle.scene;
   // A requested picture fills the canvas when it's the whole app; next to a chart or roast it's a sticker.
-  const fullPicture = !!picture && app.fn === "none";
+  const fullPicture = !!picture && app.shape === "picture";
   const box = fullPicture ? { x: 0, y: 0, width: 640, height: 420 } : { x: 452, y: 64, width: 176, height: 132 };
 
   useLayoutEffect(() => {

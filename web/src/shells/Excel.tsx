@@ -6,29 +6,21 @@ import type { ShellProps } from "./AppFrame";
 
 const COLS = "ABCDEFGHIJ".split("");
 
-/** Formula shown in the formula bar for a cell — sells the "it's really a spreadsheet" joke. */
-function formulaFor(key: string, row: number, col: number, isTotal: boolean) {
-  const L = COLS[col];
-  if (isTotal) return key === "token" ? "TOTAL" : `=SUM(${L}2:${L}${row})`;
-  if (key === "value") return `=B${row + 1}*C${row + 1}`;
-  if (key === "pnl") return `=PNL(A${row + 1})`;
-  if (key === "alloc") return `=D${row + 1}/D$TOTAL`;
-  if (key === "price") return `=SUI.PRICE(A${row + 1})`;
-  if (key === "change") return `=CHANGE24H(A${row + 1})`;
-  return null;
+/** Formula shown in the formula bar for a number cell — sells the "it's really a spreadsheet" joke. */
+function formulaFor(row: number, col: number, v: unknown) {
+  return typeof v === "number" ? `=JEV(A${row + 1}, "${COLS[col]}")` : null;
 }
 
 export function ExcelShell({ app, bundle, preview, run }: ShellProps) {
   const table = bundle.table!;
-  const rows = table.total ? [...table.rows, table.total] : table.rows;
+  const rows = table.rows;
   const [sel, setSel] = useState<{ r: number; c: number }>({ r: 1, c: 3 });
   const [tab, setTab] = useState(0);
 
   const selKey = table.columns[sel.c]?.key;
   const selRow = sel.r === 0 ? null : rows[sel.r - 1];
-  const isTotal = !!table.total && sel.r === rows.length;
-  const selVal = sel.r === 0 ? table.columns[sel.c]?.label : selRow ? fmt(selRow[selKey!], table.columns[sel.c]?.fmt) : "";
-  const formula = (selKey && sel.r > 0 && formulaFor(selKey, sel.r, sel.c, isTotal)) || selVal;
+  const selVal = sel.r === 0 ? table.columns[sel.c]?.label : selRow ? fmt(selRow[selKey!], table.columns[sel.c]?.fmt, table.columns[sel.c]?.unit) : "";
+  const formula = (selKey && selRow && formulaFor(sel.r, sel.c, selRow[selKey])) || selVal;
 
   return (
     <div className="col grow" style={{ gap: 3, minHeight: 0 }}>
@@ -60,11 +52,11 @@ export function ExcelShell({ app, bundle, preview, run }: ShellProps) {
                   {COLS.slice(0, Math.max(table.columns.length + 1, 8)).map((_, c) => {
                     const col = table.columns[c];
                     const v = r === 0 ? col?.label : row && col ? row[col.key] : undefined;
-                    const text = r === 0 ? (v ?? "") : fmt(v as string | number | undefined, col?.fmt);
-                    const neg = typeof v === "number" && v < 0 && /pnl|change|bal/.test(col?.key ?? "");
-                    const pos = typeof v === "number" && v > 0 && /pnl|change/.test(col?.key ?? "");
+                    const text = r === 0 ? (v ?? "") : fmt(v as string | number | undefined, col?.fmt, col?.unit);
+                    const neg = typeof v === "number" && v < 0 && col?.fmt === "pct";
+                    const pos = typeof v === "number" && v > 0 && col?.fmt === "pct";
                     const active = sel.r === r && sel.c === c;
-                    const totalRow = !!table.total && r === rows.length;
+                    const totalRow = false;
                     return (
                       <td
                         key={c}
@@ -105,7 +97,7 @@ export function ExcelShell({ app, bundle, preview, run }: ShellProps) {
         </div>
       ) : (
         <div className="sunken grow scroll mono selectable" style={{ background: "#fff", padding: 10, fontSize: 12, whiteSpace: "pre-wrap" }}>
-          {JSON.stringify({ ens: app.ens, shell: app.shell, fn: app.fn, target: app.target, params: app.params }, null, 2)}
+          {JSON.stringify({ prompt: app.prompt, shell: app.shell, shape: app.shape, vibe: app.vibe, params: app.params }, null, 2)}
         </div>
       )}
 

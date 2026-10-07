@@ -4,7 +4,7 @@ import { Icon } from "@/components/win99/Icon";
 import { GroupBox, LineChart, ListView, Progress } from "@/components/win99/Widgets";
 import type { ShellProps } from "./AppFrame";
 
-/** The universal shell: Win98 "web view" folder layout. Renders whatever shapes the function produced. */
+/** The universal shell: Win98 "web view" folder layout. Renders whatever shapes the content has. */
 export function ExplorerShell({ app, bundle, preview, run }: ShellProps) {
   return (
     <div className="row grow" style={{ alignItems: "stretch", gap: 6, minHeight: 0 }}>
@@ -13,7 +13,7 @@ export function ExplorerShell({ app, bundle, preview, run }: ShellProps) {
           <Icon name={app.icon} size={40} />
           <div>
             <div style={{ fontWeight: 800, fontSize: 15 }}>{bundle.title}</div>
-            <div className="muted" style={{ fontSize: 11 }}>{app.ens}</div>
+            <div className="muted" style={{ fontSize: 11 }}>{bundle.subtitle}</div>
           </div>
         </div>
         <hr style={{ border: 0, borderTop: "2px solid var(--select)", margin: "10px 0" }} />
@@ -22,16 +22,6 @@ export function ExplorerShell({ app, bundle, preview, run }: ShellProps) {
             <b>{bundle.gauge.label}</b>
             <Progress value={bundle.gauge.value} width={preview ? 148 : 196} />
             <span className="muted" style={{ fontSize: 11 }}>{bundle.gauge.caption}</span>
-          </div>
-        )}
-        {bundle.settings && (
-          <div className="col" style={{ gap: 3, marginBottom: 10 }}>
-            {bundle.settings.map((s) => (
-              <div key={s.label} className="row" style={{ justifyContent: "space-between", fontSize: 12 }}>
-                <span className="muted">{s.label}</span>
-                <b>{s.value}</b>
-              </div>
-            ))}
           </div>
         )}
         <div className="col" style={{ gap: 6 }}>
@@ -51,6 +41,20 @@ export function ExplorerShell({ app, bundle, preview, run }: ShellProps) {
           </GroupBox>
         )}
         {bundle.table && <ListView table={bundle.table} />}
+        {bundle.doc && (
+          <pre className="sunken scroll grow selectable" style={{ whiteSpace: "pre-wrap", margin: 0, padding: 8, background: "#fff", fontFamily: "inherit", minHeight: 80 }}>
+            {bundle.doc.text}
+          </pre>
+        )}
+        {bundle.scene && (
+          <div className="sunken scroll grow" style={{ padding: 10, background: "#fff", minHeight: 80 }}>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>{bundle.scene.headline}</div>
+            <p style={{ margin: "6px 0" }}>{bundle.scene.verdict}</p>
+            {bundle.scene.lines.map((l, i) => (
+              <div key={i}>• {l}</div>
+            ))}
+          </div>
+        )}
         {bundle.list && (
           <div className="sunken scroll grow" style={{ padding: 4, minHeight: 80 }}>
             {bundle.list.items.map((it, i) => (
