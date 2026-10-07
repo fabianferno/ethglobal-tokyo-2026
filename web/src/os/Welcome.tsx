@@ -32,7 +32,7 @@ export const TRY: { q: string; what: string }[] = [
 ];
 
 export function Welcome() {
-  const user = useOS((s) => s.user);
+  const user = useOS((s) => s.booted);
   const isOpen = useWelcomeOpen();
   const [page, setPage] = useState(0);
   // Unticked by default: a new visitor sees this once; demo reloads don't keep re-opening it.

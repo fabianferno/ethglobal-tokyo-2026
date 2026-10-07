@@ -3,42 +3,30 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/win99/Icon";
 import { type AppManifest, draftManifest, SHELL_META, topCombos } from "@/lib/compose/compose";
-import { FUNCTIONS } from "@/lib/compose/functions";
-import { shortlist, toCandidate } from "@/lib/compose/registry";
 import { paramChips, parse } from "@/lib/intent/parse";
 import { topK } from "@/lib/intent/types";
 import { ShellView } from "@/shells/AppFrame";
-import { labelOf, ROOT, uniqueName } from "@/lib/ens/names";
-import { canonicalName, chargeSuica, getOS, installApp, isTaken, logout, message, openApp, openFolder, openSystem, openWindow, pinFolder, SYSTEM_APPS, type SystemKey, toggleStart, useOS } from "./store";
-import { type ActionKey, actionHits, BEST_MATCH, folderFor, rankPublished, showNotFound, systemHits } from "./searchRank";
+import { message, openApp, openSystem, SYSTEM_APPS, type SystemKey, toggleStart } from "./store";
+import { type ActionKey, actionHits, showNotFound, systemHits } from "./searchRank";
 import { useIntent } from "./useIntent";
 import { TRY as WELCOME_TRY } from "./Welcome";
 import { openWelcome, takeStartQuery } from "./welcomeStore";
 
 type Entry =
-  | { kind: "published"; app: AppManifest; p: number }
   | { kind: "create"; app: AppManifest; p: number }
   | { kind: "system"; key: SystemKey; label: string; icon: IconName }
-  | { kind: "action"; key: ActionKey; label: string; icon: IconName; ens?: string }
+  | { kind: "action"; key: ActionKey; label: string; icon: IconName }
   | { kind: "notfound"; text: string };
 
-// Same prompts as the Welcome dialog's "Try it", minus the plain-function ones.
-const TRY = WELCOME_TRY.map((t) => t.q).filter((q) => !/^(split bills|gas tracker)/.test(q));
+const TRY = WELCOME_TRY.map((t) => t.q);
 
 const PINNED: { key: SystemKey; label: string; icon: IconName }[] = [
-  { key: "mycomputer", label: "My Computer", icon: "computer" },
+  { key: "mycomputer", label: "About Jev OS", icon: "computer" },
   { key: "taskmgr", label: "Task Manager", icon: "task" },
-  { key: "network", label: "Network Neighborhood", icon: "network" },
   { key: "kit", label: "Windows 98 UI Kit", icon: "logo" },
 ];
 
 export function StartMenu() {
-  const user = useOS((s) => s.user)!;
-  const suiAddress = useOS((s) => s.suiAddress);
-  const username = useOS((s) => s.username);
-  const items = useOS((s) => s.items);
-  const chainIndex = useOS((s) => s.index);
-  const indexFolders = useOS((s) => s.indexFolders);
   // The Welcome dialog's "Try it" buttons open Start with a prompt already typed.
   const [q, setQ] = useState(takeStartQuery);
   const [hot, setHot] = useState(0);
@@ -55,44 +43,22 @@ export function StartMenu() {
     return () => window.removeEventListener("pointerdown", close);
   }, []);
 
-  const index = useMemo(() => {
-    const mine = items.flatMap((i) => (i.kind === "app" && i.app.published ? [i.app] : []));
-    return [...mine, ...chainIndex.filter((p) => p.published && !mine.some((m) => m.ens === p.ens))];
-  }, [items, chainIndex]);
-  // Typing an exact name opens that app even if it isn't published: the same as following its share link.
-  const allApps = useMemo(() => [...items.flatMap((i) => (i.kind === "app" ? [i.app] : [])), ...chainIndex], [items, chainIndex]);
-  const shortl = useMemo(() => shortlist(q, index), [q, index]);
-  const candidates = useMemo(() => shortl.map(toCandidate), [shortl]);
-  const { result, busy } = useIntent(q, candidates);
+  const { result, busy } = useIntent(q);
   const params = useMemo(() => parse(q), [q]);
 
   const entries: Entry[] = useMemo(() => {
     // Like Windows 98's Start → Help: the Welcome dialog is always one click away.
     if (!q.trim()) return [...PINNED.map((p): Entry => ({ kind: "system", ...p })), { kind: "action", key: "welcome", label: "Help & Welcome", icon: "help" }];
     if (!result) return [];
-    // Code-side rules on top of Jev's yes/no: target clash, shell mismatch, exact-name pin (searchRank.ts).
-    const pub = rankPublished({ q, result, params, shortlist: shortl, index, owner: user, canonical: canonicalName, all: allApps }).map((r) => ({ kind: "published" as const, app: r.app, p: r.p }));
-    const folder = folderFor(params, index, indexFolders, q, canonicalName);
     const systems: Entry[] = [
-      ...(folder ? [{ kind: "action" as const, key: "folder" as const, label: `Open folder ${folder}`, icon: "folder" as const, ens: folder }] : []),
-      ...actionHits(q).map((a): Entry => ({ kind: "action", key: a.key, label: a.label, icon: a.key === "username" ? "agent" : a.key === "share" ? "network" : a.key === "welcome" ? "help" : "folder" })),
+      ...actionHits(q).map((a): Entry => ({ kind: "action", key: a.key, label: a.label, icon: "help" })),
       ...systemHits(q).map((s): Entry => ({ kind: "system", key: s.key, label: s.label, icon: SYSTEM_APPS[s.key].icon })),
     ];
-    const seen = new Set<string>();
-    const create = topCombos(result, 4, q)
-      .map((combo) => {
-        const draft = draftManifest({ prompt: q, intent: result, params, owner: user, combo });
-        // Show the name it will really get: first come, first served under suica.eth.
-        return { kind: "create" as const, app: { ...draft, ens: uniqueName(labelOf(draft.ens), ROOT, (n) => isTaken(n)) }, p: combo.p };
-      })
-      .filter((e) => !seen.has(e.app.ens) && seen.add(e.app.ens))
-      .slice(0, 3);
-    // Best match first (only if Jev is confident), then Create new, then the rest of the published apps.
-    const best = pub[0] && pub[0].p >= BEST_MATCH ? [pub[0]] : [];
-    const out: Entry[] = [...systems, ...best, ...create, ...pub.slice(best.length)];
-    if (showNotFound({ q, result, hasOther: out.length > 0, pinned: best.length > 0 && best[0].p === 1, systems: systems.length })) out.push({ kind: "notfound", text: q });
+    const create = topCombos(result, 3, q).map((combo): Entry => ({ kind: "create", app: draftManifest({ prompt: q, intent: result, params, combo }), p: combo.p }));
+    const out: Entry[] = [...systems, ...create];
+    if (showNotFound({ q, result, hasOther: out.length > 0, systems: systems.length })) out.push({ kind: "notfound", text: q });
     return out;
-  }, [q, result, shortl, params, user, index, indexFolders, allApps]);
+  }, [q, result, params]);
 
   const sel = entries[Math.min(hot, entries.length - 1)];
 
@@ -100,57 +66,30 @@ export function StartMenu() {
     if (!e) return;
     toggleStart(false);
     if (e.kind === "system") openSystem(e.key);
-    else if (e.kind === "action") runSearchAction(e.key, e.ens);
-    else if (e.kind === "published") openApp(e.app);
-    else if (e.kind === "create") {
-      const it = installApp(e.app);
-      if (it.kind === "app") openApp(it.app);
-    } else {
-      const guess = result && topCombos(result, 1, e.text)[0];
-      message("Error", "error", `Windows cannot find '${e.text.split(/\s+/)[0].toLowerCase()}.exe'.`, guess ? `Did you mean: ${SHELL_META[guess.shell].label} · ${FUNCTIONS[guess.fn].label}?` : "Try: excel of vitalik.eth portfolio");
-    }
+    else if (e.kind === "action") openWelcome();
+    else if (e.kind === "create") openApp(e.app);
+    else message("Error", "error", `Windows cannot find '${e.text.split(/\s+/)[0].toLowerCase()}.exe'.`, "Try: minesweeper but about cats");
   };
-
-  const bestIdx = entries.findIndex((e) => e.kind === "published" && e.p >= BEST_MATCH);
 
   return (
     <div ref={root} className="start-menu raised" role="menu" onKeyDown={(e) => e.key === "Escape" && toggleStart(false)}>
       <div className="start-banner">
-        Suica<b>OS</b>
+        Jev<b>OS</b>
       </div>
       <div className="col" style={{ width: 330, flex: "none", gap: 0, padding: "4px 4px 4px 6px" }}>
         <div className="row" style={{ padding: "6px 4px 8px", gap: 10, borderBottom: "1px solid var(--shadow)", boxShadow: "0 1px 0 var(--hilite)" }}>
-          <Icon name="agent" size={36} />
+          <Icon name="logo" size={36} />
           <div className="grow" style={{ minWidth: 0 }}>
-            <b style={{ fontSize: 15 }}>{user}</b>
-            <div className="muted mono" style={{ fontSize: 11, overflow: "hidden", textOverflow: "ellipsis" }} title="Your username on ENS">
-              {username ?? "claiming username…"}
-            </div>
-            <div className="muted mono" style={{ fontSize: 11, overflow: "hidden", textOverflow: "ellipsis" }}>
-              {suiAddress ? `${suiAddress.slice(0, 8)}…${suiAddress.slice(-4)} · Sui Testnet` : "guest · paper mode"}
-            </div>
+            <b style={{ fontSize: 15 }}>Type anything</b>
+            <div className="muted" style={{ fontSize: 11 }}>Jev builds the app while you type.</div>
           </div>
-          {suiAddress && (
-            <button className="btn sm" title="Top up a little testnet USDC" onClick={() => (toggleStart(false), void chargeSuica())}>
-              ⚡ Charge
-            </button>
-          )}
         </div>
 
         <div className="grow scroll" style={{ padding: "4px 0" }}>
           {!q.trim() && <SectionLabel>Programs</SectionLabel>}
           {entries.map((e, i) => {
             const prev = entries[i - 1];
-            const header =
-              e.kind === "published"
-                ? i === bestIdx
-                  ? "Best match"
-                  : prev?.kind !== "published" || i - 1 === bestIdx
-                    ? "Published apps"
-                    : null
-                : e.kind === "create" && prev?.kind !== "create"
-                  ? "Create new"
-                  : null;
+            const header = e.kind === "create" && prev?.kind !== "create" ? "Create new" : null;
             return (
               <div key={i}>
                 {header && <SectionLabel>{header}</SectionLabel>}
@@ -198,10 +137,6 @@ export function StartMenu() {
               {paramChips(params).map((c) => <span key={c} className="chip" style={{ cursor: "default" }}>{c}</span>)}
             </div>
           )}
-          <div className="row" style={{ marginTop: 6, justifyContent: "space-between" }}>
-            <button className="btn sm" onClick={() => (toggleStart(false), logout())}><Icon name="agent" size={16} />Log Off {getOS().user}</button>
-            <button className="btn sm" onClick={() => (toggleStart(false), logout())}><Icon name="shutdown" size={16} />Shut Down</button>
-          </div>
         </div>
       </div>
 
@@ -211,18 +146,6 @@ export function StartMenu() {
       </div>
     </div>
   );
-}
-
-/** OS actions reachable from Start search (searchRank.ts ACTION_ROUTES). */
-function runSearchAction(key: ActionKey, ens?: string) {
-  if (key === "welcome") return openWelcome();
-  if (key === "folder" && ens) return void openFolder(pinFolder(ens));
-  if (key === "newfolder") return void openWindow({ title: "New Folder", icon: "folder", payload: { type: "newfolder" }, w: 420, h: 230, dialog: true });
-  if (key === "username") {
-    const name = getOS().username;
-    return void message("Your username", "agent", name ? `You are ${name}` : "Your username is being claimed…", name ? "Usernames live under users.suica.eth and point at this browser's key. First come, first served." : "Suica OS claims <name>.users.suica.eth for you at log-on. Check back in a moment.");
-  }
-  message("Share a folder", "network", "Open a folder, then use its Roles panel to share it.", "Type an ENS name or 0x address and pick Member (can create apps) or Manager (can also share). Roles are ENSv2 Enhanced Access Control on the folder's own registry.");
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -235,7 +158,7 @@ function EntryRow({ e, hot, onHover, onClick }: { e: Entry; hot: boolean; onHove
       ? [e.icon, e.label, "", ""]
       : e.kind === "notfound"
         ? (["error", `${e.text.split(/\s+/)[0]}.exe`, "Not found", ""] as const)
-        : [e.app.icon, e.app.title, e.kind === "published" ? `${e.app.ens} · ★ ${e.app.users ?? 0}` : `✨ ${e.app.ens}`, `${Math.round(e.p * 100)}%`];
+        : [e.app.icon, e.app.title, `✨ ${SHELL_META[e.app.shell].label} × ${e.app.shape}`, `${Math.round(e.p * 100)}%`];
   return (
     <button className={`menu-item ${hot ? "hot" : ""}`} onPointerEnter={onHover} onClick={onClick} style={{ padding: "5px 6px", alignItems: "center" }}>
       <Icon name={icon as IconName} size={28} />
@@ -254,7 +177,7 @@ function Preview({ entry }: { entry: Entry | undefined }) {
       <div className="sunken grow col" style={{ alignItems: "center", justifyContent: "center", background: "linear-gradient(#f4f6fb, #dfe6f7)", gap: 10, padding: 20, textAlign: "center" }}>
         <Icon name={entry?.kind === "notfound" ? "error" : "logo"} size={64} />
         <b style={{ fontSize: 16 }}>{entry?.kind === "notfound" ? "Windows cannot find that program." : "Type anything."}</b>
-        <span className="muted">Every app is an agent with an ENS name and a Sui wallet.<br />Its UI is composed by Jev as you type.</span>
+        <span className="muted">Nothing here is installed.<br />Jev composes each app as you type.</span>
       </div>
     );
   }
@@ -264,13 +187,13 @@ function Preview({ entry }: { entry: Entry | undefined }) {
       <div className="titlebar">
         <Icon name={app.icon} size={18} />
         <span className="title">{app.title}</span>
-        <span className="badge info" style={{ textShadow: "none" }}>{entry.kind === "create" ? "PREVIEW" : "PUBLISHED"}</span>
+        <span className="badge info" style={{ textShadow: "none" }}>PREVIEW</span>
       </div>
       <div className="window-body" style={{ padding: 3, zoom: 0.82, overflow: "hidden" }}>
-        <ShellView key={`${app.ens}:${app.shell}:${app.prompt}`} app={app} preview />
+        <ShellView key={`${app.shell}:${app.shape}:${app.prompt}`} app={app} preview />
       </div>
       <div className="statusbar">
-        <div>{app.ens}</div>
+        <div>{app.jevSource === "jev" ? `Jev · ${app.jevMs} ms` : "offline"}</div>
         <div>{app.description.slice(0, 48)}</div>
       </div>
     </div>
@@ -297,14 +220,14 @@ function JevHud({ result, busy, q }: { result: ReturnType<typeof useIntent>["res
     <div className="raised" style={{ padding: 6, flex: "none" }}>
       <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
         {bars("shell", topK(result.shell, 3))}
-        {bars("function", topK(result.fn, 3))}
+        {bars("shape", topK(result.shape, 3))}
       </div>
       <div className="row mono" style={{ fontSize: 11, marginTop: 4, gap: 8 }}>
-        <span className={`badge ${result.source === "jev" ? "ok" : "warn"}`}>{result.model}</span>
+        {result.source === "jev" ? <span className="badge ok">Jev</span> : <span className="badge warn">offline</span>}
         <span>{busy ? "…" : `${result.cached ? "cached" : `${result.latencyMs}ms`}`}</span>
         <span>vibe:{result.vibe.value}</span>
         <span>scene:{result.scene.value}</span>
-        <span>risk:{result.signals.risk.toFixed(1)}</span>
+        {result.source !== "jev" && <span>keyword fallback</span>}
       </div>
     </div>
   );

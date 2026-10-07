@@ -7,7 +7,6 @@ import { focus, openSystem, patchWindow, toggleStart, useOS } from "./store";
 export function Taskbar() {
   const windows = useOS((s) => s.windows);
   const startOpen = useOS((s) => s.startOpen);
-  const activity = useOS((s) => s.activity);
   const top = windows.reduce((a, w) => (!w.min && w.z > (a?.z ?? -1) ? w : a), undefined as (typeof windows)[number] | undefined);
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
@@ -39,8 +38,7 @@ export function Taskbar() {
       </div>
       <div className="tray">
         <button title="Task Manager" onClick={() => openSystem("taskmgr")} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", position: "relative" }}>
-          <Icon name="agent" size={20} />
-          {activity.length > 0 && <span className="badge bad" style={{ position: "absolute", top: -6, right: -8, fontSize: 9, padding: "0 3px" }}>{activity.length}</span>}
+          <Icon name="task" size={20} />
         </button>
         <Icon name="network" size={20} />
         <span style={{ minWidth: 64, textAlign: "right" }} suppressHydrationWarning>
