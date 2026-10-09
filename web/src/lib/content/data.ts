@@ -27,7 +27,12 @@ function dropItemLimits(o: unknown): unknown {
 }
 export const dataJsonSchema = () => dropItemLimits(z.toJSONSchema(DATA_RAW, { target: "draft-7", unrepresentable: "any" })) as object;
 
-const snake = (x: string) => x.toLowerCase().replace(/\(.*?\)/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 24) || "field";
+/** "id" is every record's key and "none" means an empty slot, so data can't use them as field names. */
+const RESERVED = new Set(["id", "none"]);
+const snake = (x: string) => {
+  const s = x.toLowerCase().replace(/\(.*?\)/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 24) || "field";
+  return RESERVED.has(s) ? `${s}_field` : s;
+};
 function unique(names: string[]): string[] {
   const seen = new Map<string, number>();
   return names.map((n) => {

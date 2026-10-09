@@ -3,13 +3,31 @@ import type { AppState, Data, Tree } from "@/lib/kit/types";
 export type StepResult = { tree: Tree; done: boolean; offline: boolean; ms: number };
 export type Step = (state: AppState, tree: Tree | null, prev: Tree | null) => Promise<StepResult>;
 
+const clip = (v: unknown, n: number) => (typeof v === "string" && v.length > n ? v.slice(0, n) : v);
+
+/** The state trimmed to what /api/compose accepts, so one long title or a big list never blocks re-composing. */
+export function clampState(s: AppState): AppState {
+  const filter = Object.fromEntries(Object.entries(s.ui.filter).map(([k, v]) => [k, String(clip(v, 200))]));
+  const data = s.data && {
+    collections: s.data.collections.map((c) => ({
+      ...c,
+      records: c.records.slice(-200).map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, clip(v, 200)])) as typeof r),
+    })),
+  };
+  return { prompt: s.prompt.slice(0, 400), data, ui: { ...s.ui, filter }, history: s.history.slice(-20).map((h) => h.slice(0, 200)) };
+}
+
 export const fetchStep: Step = async (state, tree, prev) => {
-  const res = await fetch("/api/compose", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ state, tree, prev }), signal: AbortSignal.timeout(10_000) });
+  const res = await fetch("/api/compose", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: clampState(state), tree, prev }), signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`compose ${res.status}`);
   return (await res.json()) as StepResult;
 };
 
-/** Compose a whole tree, one Decisions call per step, rendering each step as it lands. */
+/**
+ * Compose a whole tree, one Decisions call per step. The first composition renders every step as it lands (you
+ * watch Jev design it); a re-compose keeps showing the previous tree and swaps in only the finished one, so parts
+ * never blank out mid-interaction. A failed step keeps the previous tree and reports offline.
+ */
 export async function runCompose(
   state: AppState,
   prev: Tree | null,
@@ -20,14 +38,23 @@ export async function runCompose(
   const isCurrent = opts.isCurrent ?? (() => true);
   let tree: Tree | null = null;
   let calls = 0, ms = 0, offline = false;
+  const reveal = !prev;
   for (let i = 0; i < (opts.maxSteps ?? 6); i++) {
-    const r = await step(state, tree, prev);
+    let r: StepResult;
+    try {
+      r = await step(state, tree, prev);
+    } catch (e) {
+      if (!isCurrent()) return null;
+      if (!prev) throw e;
+      onTree(prev);
+      return { tree: prev, calls, ms, offline: true };
+    }
     if (!isCurrent()) return null;
     calls += r.offline ? 0 : 1;
     ms += r.ms;
     offline ||= r.offline;
     tree = r.tree;
-    onTree(tree);
+    if (reveal || r.done) onTree(tree);
     if (r.done) break;
   }
   return tree ? { tree, calls, ms, offline } : null;

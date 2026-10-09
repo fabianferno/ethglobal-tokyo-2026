@@ -19,3 +19,11 @@ test("oversized or malformed state is a 400", async () => {
   expect((await POST(body({ state: { ...state, history: Array(21).fill("h") }, tree: null, prev: null }))).status).toBe(400);
   expect((await POST(body({ nope: 1 }))).status).toBe(400);
 });
+
+test("a crafted tree (orphan paths / too deep) or an oversized sort field is a 400", async () => {
+  const orphan = { root: { path: "zz", type: null }, accent: "navy", nonsense: 0, bound: false };
+  expect((await POST(body({ state, tree: orphan, prev: null }))).status).toBe(400);
+  expect((await POST(body({ state, tree: null, prev: orphan }))).status).toBe(400);
+  const sorted = { ...state, ui: { ...state.ui, sort: { x: { field: "f".repeat(31), dir: "asc" } } } };
+  expect((await POST(body({ state: sorted, tree: null, prev: null }))).status).toBe(400);
+});

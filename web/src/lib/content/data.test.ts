@@ -45,3 +45,11 @@ test("the schema sent to Gemini has no array item limits (Gemini rejects them wi
   expect(json).not.toMatch(/"(min|max)Items"/);
   expect(json).toMatch(/"maxLength"/);
 });
+
+test("fields named id or none are renamed (id is the record key; none means an empty slot)", () => {
+  const d = toData({ collections: [{ name: "bugs", fields: [{ name: "ID", type: "text", values: [] }, { name: "None", type: "text", values: [] }], records: [["B-1", "x"]] }] });
+  const names = d.collections[0].fields.map((f) => f.name);
+  expect(names).not.toContain("id");
+  expect(names).not.toContain("none");
+  expect(d.collections[0].records[0].id).toMatch(/^g/);
+});

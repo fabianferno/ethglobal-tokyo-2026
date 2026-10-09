@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Component, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/win99/Icon";
 import { MenuBar, type MenuEntry } from "@/components/win99/Menu";
 import { RenderTree } from "@/kit/Render";
@@ -10,6 +10,24 @@ import { treeText } from "@/lib/kit/tree";
 import type { AppState } from "@/lib/kit/types";
 import { type AppSpec, closeWindow, message, setStats } from "@/os/store";
 import { useComposed } from "./useComposed";
+
+/** One broken part must never take the OS down: catch render errors per window and offer a retry. */
+class AppBoundary extends Component<{ children: ReactNode; onRetry: () => void }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div className="sunken" style={{ display: "flex", gap: 10, alignItems: "center", padding: 12, background: "#fff" }}>
+        <Icon name="error" size={32} />
+        <b className="grow">This app crashed while drawing.</b>
+        <button className="btn" onClick={() => (this.setState({ failed: false }), this.props.onRetry())}>Try again</button>
+      </div>
+    );
+  }
+}
 
 /** A composed app: state → Jev composes the tree → interactions change state → Jev re-composes. */
 export function AppWindow({ app, winId }: { app: AppSpec; winId: string }) {
@@ -52,7 +70,9 @@ export function AppWindow({ app, winId }: { app: AppSpec; winId: string }) {
             <button className="btn" onClick={retry}>Try again</button>
           </div>
         ) : c.tree ? (
-          <RenderTree tree={c.tree} state={state} dispatch={dispatch} preview={false} />
+          <AppBoundary onRetry={retry}>
+            <RenderTree tree={c.tree} state={state} dispatch={dispatch} preview={false} />
+          </AppBoundary>
         ) : (
           <div className="kit-open sunken">Jev is designing this app…</div>
         )}

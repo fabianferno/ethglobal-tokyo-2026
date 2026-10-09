@@ -56,3 +56,16 @@ export function treeText(t: Tree): string {
   };
   return one(t.root);
 }
+
+/** A tree from the client is only trusted if it has the exact shape we build: canonical paths, the right child
+ *  counts, parts without children, within the depth cap. Anything else is a crafted or stale tree. */
+export function validTree(t: Tree): boolean {
+  let nodes = 0;
+  const ok = (n: TreeNode, path: string): boolean => {
+    if (++nodes > 32 || n.path !== path || depthOf(path) > MAX_DEPTH) return false;
+    if (n.type === null || !isContainer(n.type)) return !n.children?.length;
+    const kids = n.children ?? [];
+    return kids.length === childCount(n.type) && kids.every((c, i) => ok(c, `${path}.${i}`));
+  };
+  return ok(t.root, "root");
+}

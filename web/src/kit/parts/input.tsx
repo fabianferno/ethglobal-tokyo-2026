@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { visibleRecords } from "@/lib/kit/ops";
 import { nice, type PartProps } from "./types";
 
 export function FormPart({ node, col, dispatch, preview }: PartProps) {
   const c = col!;
-  const fields = ["field1", "field2", "field3", "field4"].map((k) => node.bindings?.[k]).filter(Boolean) as string[];
+  // Only fields the data still has (data can be re-written under a bound layout).
+  const fields = (["field1", "field2", "field3", "field4"].map((k) => node.bindings?.[k]).filter(Boolean) as string[]).filter((name) => c.fields.some((x) => x.name === name));
   const [vals, setVals] = useState<Record<string, string>>({});
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +29,7 @@ export function FormPart({ node, col, dispatch, preview }: PartProps) {
             ) : f.type === "yesno" ? (
               <input type="checkbox" checked={/^(yes|true)$/.test(vals[name] ?? "")} onChange={(e) => set(e.target.checked ? "yes" : "no")} />
             ) : (
-              <input className="field grow" type={f.type === "date" ? "date" : "text"} inputMode={f.type === "number" ? "decimal" : undefined} value={vals[name] ?? ""} onChange={(e) => set(e.target.value)} />
+              <input className="field grow" maxLength={120} type={f.type === "date" ? "date" : "text"} inputMode={f.type === "number" ? "decimal" : undefined} value={vals[name] ?? ""} onChange={(e) => set(e.target.value)} />
             )}
           </label>
         );
@@ -41,19 +42,23 @@ export function FormPart({ node, col, dispatch, preview }: PartProps) {
 export function SearchPart({ node, col, state, dispatch, preview }: PartProps) {
   const c = col!;
   const field = node.bindings?.field ?? "";
-  const [q, setQ] = useState(state.ui.filter[c.name] ?? "");
-  const first = useRef(true);
+  // The box shows the app's filter; while typing it shows the draft, applied after a 500 ms pause.
+  // No "skip first run" ref: the effect only acts on a draft that differs from the applied filter (StrictMode-safe).
+  const applied = state.ui.filter[c.name] ?? "";
+  const [draft, setDraft] = useState<string | null>(null);
   useEffect(() => {
-    if (first.current) return void (first.current = false);
-    if (preview) return;
-    const t = setTimeout(() => dispatch({ kind: "filter", collection: c.name, query: q, field }), 500);
+    if (preview || draft === null || draft === applied) return;
+    const t = setTimeout(() => {
+      dispatch({ kind: "filter", collection: c.name, query: draft, field });
+      setDraft(null);
+    }, 500);
     return () => clearTimeout(t);
-    // dispatch identity changes per render; the query is the trigger
+    // dispatch identity changes per render; the draft is the trigger
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+  }, [draft, applied]);
   return (
     <div className="row" style={{ gap: 6 }}>
-      <input className="field grow" placeholder={`Search ${nice(c.name)} by ${nice(field)}…`} value={q} onChange={(e) => setQ(e.target.value)} disabled={preview} />
+      <input className="field grow" maxLength={100} placeholder={`Search ${nice(c.name)} by ${nice(field)}…`} value={draft ?? applied} onChange={(e) => setDraft(e.target.value)} disabled={preview} />
       <span className="muted" style={{ fontSize: 11 }}>{visibleRecords(c, state.ui).length} shown</span>
     </div>
   );

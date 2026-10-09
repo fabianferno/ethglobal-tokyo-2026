@@ -17,7 +17,9 @@ export function useComposed(state: AppState, seed: Tree | null, opts: { enabled:
     const t = setTimeout(async () => {
       setInfo((i) => ({ ...i, composing: true }));
       const r = await runCompose(state, last.current, (tr) => my === gen.current && setTree(tr), { isCurrent: () => my === gen.current }).catch(() => null);
-      if (!r || my !== gen.current) return;
+      if (my !== gen.current) return;
+      // A failed first composition: stop "composing…" and say so, instead of hanging.
+      if (!r) return setInfo((i) => ({ ...i, composing: false, offline: true }));
       last.current = r.tree;
       setInfo({ composing: false, calls: r.calls, ms: r.ms, offline: r.offline });
     }, opts.delayMs);

@@ -32,10 +32,23 @@ export function coerce(field: Field, raw: string | undefined): Value {
   }
 }
 
-/** The human name of a record: its first text field. */
+/** The human name of a record: its first text field (clipped, so history lines stay short). */
 export function recordLabel(col: Collection, rec: Rec): string {
   const t = col.fields.find((x) => x.type === "text");
-  return String(t ? rec[t.name] : rec.id);
+  const s = String(t ? rec[t.name] : rec.id);
+  return s.length > 40 ? `${s.slice(0, 39)}…` : s;
+}
+
+/** Bindings that still point at fields this collection has (data can be re-written under a bound tree). */
+export function liveBindings(b: Record<string, string>, col: Collection): Record<string, string> {
+  const has = (f: string) => col.fields.some((x) => x.name === f);
+  return Object.fromEntries(
+    Object.entries(b).filter(([, v]) => {
+      if (v === "count" || v === "remove-selected" || v === "clear-selection" || v === "clear-filter") return true;
+      const field = v.includes(":") ? v.slice(v.indexOf(":") + 1) : v;
+      return has(field);
+    }),
+  );
 }
 
 export function visibleRecords(col: Collection, ui: UiState): Rec[] {
@@ -91,7 +104,7 @@ export function applyOp(state: AppState, op: Op, makeId: () => string = defaultI
       const rec = col.records.find((r) => r.id === op.id);
       if (!rec || !col.fields.some((f) => f.name === op.field)) return state;
       const s = withCollection(state, col.name, (c) => ({ ...c, records: c.records.map((r) => (r.id === op.id ? { ...r, [op.field]: op.value } : r)) }))!;
-      return log(s, `set ${op.field} to ${String(op.value)} on "${recordLabel(col, rec)}" in ${col.name}`);
+      return log(s, `set ${op.field} to ${String(op.value).slice(0, 30)} on "${recordLabel(col, rec)}" in ${col.name}`);
     }
     case "remove": {
       const rec = col.records.find((r) => r.id === op.id);
@@ -109,7 +122,7 @@ export function applyOp(state: AppState, op: Op, makeId: () => string = defaultI
     case "filter": {
       const q = op.query.trim();
       const filter = { ...state.ui.filter, [col.name]: q, [`${col.name}:field`]: op.field };
-      return log({ ...state, ui: { ...state.ui, filter } }, q ? `filtered ${col.name} by "${q}"` : `cleared the filter on ${col.name}`);
+      return log({ ...state, ui: { ...state.ui, filter } }, q ? `filtered ${col.name} by "${q.slice(0, 40)}"` : `cleared the filter on ${col.name}`);
     }
     case "sort": {
       const cur = state.ui.sort[col.name];

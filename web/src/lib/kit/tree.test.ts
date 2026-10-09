@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { emptyTree, isComplete, nodeKey, nodeOptions, openNodes, partNodes, setNode, treeText } from "./tree";
+import { emptyTree, isComplete, nodeKey, nodeOptions, openNodes, partNodes, setNode, treeText, validTree } from "./tree";
+import type { TreeNode } from "./types";
 import type { Data } from "./types";
 
 const data: Data = { collections: [{ name: "notes", fields: [{ name: "body", type: "text" }], records: [] }] };
@@ -47,5 +48,22 @@ describe("tree", () => {
     expect(nodeKey(a)).toBe(nodeKey({ ...a }));
     expect(nodeKey(a)).not.toBe(nodeKey({ ...a, bindings: { title: "other" } }));
     expect(nodeKey(a)).not.toBe(nodeKey({ ...a, type: "table" }));
+  });
+});
+
+describe("validTree (a client-supplied tree)", () => {
+  test("accepts a real tree", () => {
+    let t = setNode(emptyTree(), "root", { type: "split-h-2" });
+    t = setNode(t, "root.0", { type: "list" });
+    expect(validTree(t)).toBe(true);
+    expect(validTree(emptyTree())).toBe(true);
+  });
+  test("rejects orphan paths, wrong child counts, children on parts, and depth past the cap", () => {
+    expect(validTree({ ...emptyTree(), root: { path: "zz", type: null } })).toBe(false);
+    expect(validTree({ ...emptyTree(), root: { path: "root", type: "split-h-2", children: [{ path: "root.0", type: null }] } })).toBe(false);
+    expect(validTree({ ...emptyTree(), root: { path: "root", type: "table", children: [{ path: "root.0", type: null }] } })).toBe(false);
+    const deep = (d: number, path: string): TreeNode => (d === 0 ? { path, type: null } : { path, type: "split-h-2", children: [deep(d - 1, `${path}.0`), deep(d - 1, `${path}.1`)] });
+    expect(validTree({ ...emptyTree(), root: deep(3, "root") })).toBe(false);
+    expect(validTree({ ...emptyTree(), root: deep(2, "root") })).toBe(true);
   });
 });

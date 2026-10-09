@@ -77,3 +77,15 @@ describe("ops", () => {
     expect(s.history).toHaveLength(20);
   });
 });
+
+test("history lines stay short even for very long titles", () => {
+  const long = "x".repeat(300);
+  const s = applyOp(base(), { kind: "add", collection: "expenses", values: { item: long } }, () => "z");
+  expect(s.history.at(-1)!.length).toBeLessThanOrEqual(120);
+});
+
+test("liveBindings drops bindings to fields the collection no longer has", async () => {
+  const { liveBindings } = await import("./ops");
+  const c = base().data!.collections[0];
+  expect(liveBindings({ field1: "item", field2: "cost", agg1: "sum:cost", agg2: "count", btn1: "sort:cost", btn2: "clear-filter" }, c)).toEqual({ field1: "item", agg2: "count", btn2: "clear-filter" });
+});

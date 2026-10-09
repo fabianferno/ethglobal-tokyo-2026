@@ -2,7 +2,7 @@
 
 import "./kit.css";
 import { isContainer } from "@/lib/kit/catalog";
-import type { Op } from "@/lib/kit/ops";
+import { liveBindings, type Op } from "@/lib/kit/ops";
 import { nodeKey } from "@/lib/kit/tree";
 import type { Accent, AppState, PartType, Tree, TreeNode } from "@/lib/kit/types";
 import { DetailPart, ListPart, StatRowPart, TablePart } from "./parts/data";
@@ -48,10 +48,12 @@ function Node({ node, state, dispatch, preview }: { node: TreeNode; state: AppSt
   }
   const col = state.data?.collections.find((c) => c.name === node.collection) ?? null;
   const Part = PARTS[node.type];
+  // Render only bindings this collection still has: data can change under a layout that was bound to it.
+  const live = col && node.bindings ? { ...node, bindings: liveBindings(node.bindings, col) } : node;
   if (!col && node.type !== "picture") return <div className="kit-placeholder sunken">{node.type}{node.collection ? ` of ${node.collection}` : ""}…</div>;
   return (
     <div className="kit-part sunken kit-enter">
-      <Part node={node} col={col} state={state} dispatch={dispatch} preview={preview} />
+      <Part node={live} col={col} state={state} dispatch={dispatch} preview={preview} />
     </div>
   );
 }
