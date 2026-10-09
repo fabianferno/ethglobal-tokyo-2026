@@ -1,7 +1,9 @@
 import "server-only";
 import type { Bundle } from "@/lib/compose/shapes";
-import { buildPrompt, type ContentRequest } from "./prompt";
+import { buildDataPrompt, buildPrompt, type ContentRequest } from "./prompt";
 import { ContentError, jsonSchemaFor, toBundle } from "./schema";
+import { dataJsonSchema, toData } from "./data";
+import type { Data } from "@/lib/kit/types";
 
 export type { ContentRequest };
 export type GeminiCall = (p: { system: string; user: string; schema: object }) => Promise<string>;
@@ -67,5 +69,42 @@ export function generateContent(req: ContentRequest, call: GeminiCall = gemini):
     return b;
   })().finally(() => inflight.delete(key));
   inflight.set(key, p);
+  return p;
+}
+
+const dataCache = new Map<string, Data>();
+const dataInflight = new Map<string, Promise<Data>>();
+
+/** Gemini → validated Data. One retry on a bad answer. Cached per (prompt, nonce). */
+export function generateData(prompt: string, nonce: number, call: GeminiCall = gemini): Promise<Data> {
+  const key = `${prompt.trim().toLowerCase()}|${nonce}`;
+  const hit = dataCache.get(key);
+  if (hit) return Promise.resolve(hit);
+  const running = dataInflight.get(key);
+  if (running) return running;
+  const once = async () => {
+    const { system, user } = buildDataPrompt(prompt);
+    const raw = await call({ system, user, schema: dataJsonSchema() });
+    let json: unknown;
+    try {
+      json = JSON.parse(raw);
+    } catch {
+      throw new ContentError("not JSON");
+    }
+    return toData(json);
+  };
+  const p = (async () => {
+    let d: Data;
+    try {
+      d = await once();
+    } catch (e) {
+      if (!(e instanceof ContentError)) throw e;
+      d = await once();
+    }
+    if (dataCache.size >= 200) dataCache.delete(dataCache.keys().next().value!);
+    dataCache.set(key, d);
+    return d;
+  })().finally(() => dataInflight.delete(key));
+  dataInflight.set(key, p);
   return p;
 }
