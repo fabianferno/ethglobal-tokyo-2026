@@ -1,6 +1,8 @@
 "use client";
 
-import type { Fmt, Table } from "@/lib/compose/shapes";
+export type Fmt = "num" | "pct" | "text";
+/** The ListView's own table shape. */
+export type Table = { columns: { key: string; label: string; fmt?: Fmt; unit?: string }[]; rows: Record<string, string | number>[] };
 
 const PREFIX_UNITS = new Set(["$", "¥", "€", "£", "₹"]);
 

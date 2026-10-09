@@ -1,13 +1,13 @@
-/** Prompts Tappy offers when the desktop sits idle. Each one shows off a different program × shape. */
+/** Prompts Tappy offers when the desktop sits idle. Each one makes Jev compose a different kind of app. */
 export const SUGGESTIONS = [
-  "minesweeper but about cats",
-  "excel of the best ramen in tokyo",
-  "paint but roast my monday",
-  "weather forecast for my mood",
-  "notepad diary of a pirate",
-  "doom but the enemies are my emails",
-  "3d chart of the tallest buildings",
-  "tetris but about sushi",
+  "expense tracker for my tokyo trip",
+  "reading list with what i've finished",
+  "kanban for moving apartments",
+  "habit tracker for this month",
+  "ramen spots i want to try",
+  "workout log with my personal bests",
+  "wedding guest list and rsvps",
+  "recipe box with what i can cook tonight",
 ] as const;
 
 export function pickSuggestion(seen: ReadonlySet<string>, rand: () => number = Math.random): string | null {

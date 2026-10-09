@@ -1,66 +1,37 @@
 import { describe, expect, test, vi } from "vitest";
-import { buildPrompt } from "./prompt";
-import { generateContent, type GeminiCall } from "./server";
+import { buildDataPrompt } from "./prompt";
+import { type GeminiCall, generateData } from "./server";
 
-const req = { prompt: "excel of the best ramen in tokyo", shell: "excel", shape: "table", vibe: "playful", nonce: 0 } as const;
-const good = JSON.stringify({ title: "Ramen", subtitle: "Tokyo", columns: [{ label: "Shop", fmt: "text", unit: "" }], rows: [["Ichiran"]] });
+const good = JSON.stringify({ collections: [{ name: "books", fields: [{ name: "title", type: "text", values: [] }], records: [["Dune"]] }] });
 
-describe("buildPrompt", () => {
-  test("names the program, shape, tone and caps", () => {
-    const { system, user } = buildPrompt(req);
-    expect(system).toMatch(/Excel/);
-    expect(system).toMatch(/table/);
-    expect(system).toMatch(/playful/);
-    expect(system).toMatch(/12 rows/);
-    expect(user).toBe(req.prompt);
-  });
-
-  test("asks for a playable board size", () => {
-    expect(buildPrompt({ ...req, shell: "minesweeper", shape: "grid" }).system).toMatch(/6 to 8 rows by 6 to 8 columns/);
-  });
-
-  test("asks for poster text that fits the Paint canvas", () => {
-    const { system } = buildPrompt({ ...req, shell: "paint", shape: "scene" });
-    expect(system).toMatch(/headline under 30 characters/);
-    expect(system).toMatch(/one-liners under 60 characters/);
-  });
-
-  test("keeps the OS out of the content", () => {
-    expect(buildPrompt(req).system).toMatch(/Do not mention Windows, Jev OS or computers/);
+describe("buildDataPrompt", () => {
+  test("states the limits and the field types; the person's words are the user turn", () => {
+    const { system, user } = buildDataPrompt("reading list");
+    expect(system).toMatch(/1 to 4 collections/);
+    expect(system).toMatch(/up to 15/);
+    expect(system).toMatch(/yesno/);
+    expect(user).toBe("reading list");
   });
 });
 
-describe("generateContent", () => {
-  test("returns a bundle", async () => {
-    const call: GeminiCall = vi.fn(async () => good);
-    const b = await generateContent(req, call);
-    expect(b.table!.rows[0]).toEqual({ c0: "Ichiran" });
+describe("generateData", () => {
+  test("returns typed data", async () => {
+    const d = await generateData("reading list", 0, vi.fn<GeminiCall>(async () => good));
+    expect(d.collections[0].records[0].title).toBe("Dune");
   });
 
-  test("retries once on invalid JSON, then succeeds", async () => {
-    const call = vi.fn<GeminiCall>().mockResolvedValueOnce("{not json").mockResolvedValueOnce(good);
-    await generateContent({ ...req, nonce: 1 }, call);
-    expect(call).toHaveBeenCalledTimes(2);
+  test("retries once on a bad answer, then gives up", async () => {
+    const once = vi.fn<GeminiCall>().mockResolvedValueOnce("{nope").mockResolvedValueOnce(good);
+    await generateData("reading list", 1, once);
+    expect(once).toHaveBeenCalledTimes(2);
+    const bad = vi.fn<GeminiCall>(async () => JSON.stringify({ collections: [] }));
+    await expect(generateData("reading list", 2, bad)).rejects.toThrow();
+    expect(bad).toHaveBeenCalledTimes(2);
   });
 
-  test("gives up after two bad answers", async () => {
-    const call = vi.fn<GeminiCall>(async () => JSON.stringify({ title: "x" }));
-    await expect(generateContent({ ...req, nonce: 2 }, call)).rejects.toThrow();
-    expect(call).toHaveBeenCalledTimes(2);
-  });
-
-  test("same request twice = one call (cache + in-flight dedupe)", async () => {
+  test("same prompt + nonce twice = one Gemini call", async () => {
     const call = vi.fn<GeminiCall>(async () => good);
-    await Promise.all([generateContent({ ...req, nonce: 3 }, call), generateContent({ ...req, nonce: 3 }, call)]);
-    await generateContent({ ...req, nonce: 3 }, call);
+    await Promise.all([generateData("x list", 3, call), generateData("x list", 3, call)]);
     expect(call).toHaveBeenCalledTimes(1);
-  });
-
-  test("failed generations are not cached", async () => {
-    const bad = vi.fn<GeminiCall>(async () => "nope");
-    await expect(generateContent({ ...req, nonce: 4 }, bad)).rejects.toThrow();
-    const ok = vi.fn<GeminiCall>(async () => good);
-    await generateContent({ ...req, nonce: 4 }, ok);
-    expect(ok).toHaveBeenCalledTimes(1);
   });
 });

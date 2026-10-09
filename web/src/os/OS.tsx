@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo } from "react";
 import { Assistant } from "@/assistant/Assistant";
-import { InstallTray } from "@/assistant/InstallTray";
 import { Window } from "@/components/win99/Window";
 import { AppWindow } from "@/apps/AppWindow";
 import { MessageBox } from "@/system/Dialogs";
@@ -57,7 +56,6 @@ export function OS() {
       ))}
       {startOpen && <StartMenu />}
       <Taskbar />
-      <InstallTray />
       <Assistant />
       <Welcome />
       {balloon && (

@@ -1,7 +1,9 @@
 import { z } from "zod";
 import type { Collection, Data, Field, FieldType, Rec } from "@/lib/kit/types";
 import { coerce } from "@/lib/kit/ops";
-import { ContentError } from "./schema";
+
+/** Gemini answered, but not in a shape we can use (bad JSON, out of limits). Worth one retry. */
+export class ContentError extends Error {}
 
 const s = (max: number) => z.string().min(1).max(max);
 export const DATA_RAW = z.object({

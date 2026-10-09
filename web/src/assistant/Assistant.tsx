@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { toggleStart, openSystem, useOS } from "@/os/store";
 import { openWelcome } from "@/os/welcomeStore";
-import { greet, onWindowsChanged, suggestWhenIdle, watchInstalls } from "./brain";
+import { greet, suggestWhenIdle } from "./brain";
 import { type Bubble, dismiss, hydrateAssistant, type Mood, say, setHidden, useAssistant } from "./store";
 
 /**
@@ -20,14 +20,12 @@ export function Assistant() {
 
   useEffect(() => {
     hydrateAssistant();
-    return watchInstalls();
   }, []);
   useEffect(() => {
     if (!booted) return;
     const t = setTimeout(greet, 1200);
     return () => clearTimeout(t);
   }, [booted]);
-  useEffect(() => onWindowsChanged(), [windows]);
   // 25 s with nothing open → one prompt idea. Any window change restarts the clock.
   useEffect(() => {
     if (!booted) return;

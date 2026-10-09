@@ -1,6 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { ContentError } from "./schema";
-import { toData } from "./data";
+import { ContentError, toData } from "./data";
 
 const raw = {
   collections: [

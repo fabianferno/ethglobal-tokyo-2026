@@ -49,4 +49,3 @@ next-env.d.ts
 /move/suica_pool/build.log
 
 # LLM-generated shells cache (published copies live on Walrus + ENS)
-/.genshells/
