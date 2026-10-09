@@ -1,3 +1,5 @@
+> **Superseded (2026-10-09)** by `docs/superpowers/specs/2026-10-09-composed-ui-design.md` (apps composed from a kit; no fixed programs).
+
 # Jev OS — design
 
 Date: 2026-10-07 · Status: approved in chat, awaiting spec review · Supersedes the crypto product in `docs/PRD.md`

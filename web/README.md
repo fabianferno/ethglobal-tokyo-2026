@@ -1,6 +1,6 @@
 # Jev OS — web
 
-Next.js 16 · React 19 · TypeScript · GSAP · OpenAI Decisions API (Jev) · zod · vitest. No UI framework — the Win98 kit is hand-written CSS.
+Next.js 16 · React 19 · TypeScript · OpenAI Decisions API (Jev) · Gemini · zod · vitest. No UI framework — the Win98 kit is hand-written CSS.
 
 ## Run it
 
@@ -8,45 +8,40 @@ Next.js 16 · React 19 · TypeScript · GSAP · OpenAI Decisions API (Jev) · zo
 pnpm install
 # web/.env.local
 #   OPENAI_API_KEY=…       Jev (OpenAI Decisions API, gpt-6-luna)
-#   GEMINI_API_KEY=…       app content + pictures
-#   AI_GATEWAY_API_KEY=…   optional: LLM-written programs ("tetris but …") via Vercel AI Gateway
+#   GEMINI_API_KEY=…       starting data + pictures
 pnpm dev                   # http://localhost:3000
 ```
 
-Without `OPENAI_API_KEY` the offline keyword classifier answers instead, and the Start menu shows an "offline" chip.
+Without `OPENAI_API_KEY` a rule-based layout is used instead, and the Start menu shows an "offline" chip.
 
 ## How a prompt becomes an app
 
 ```
-Start search keystroke
-  → /api/intent        Jev: one OpenAI Decisions call, 5 questions in parallel (shell, shape, vibe, scene, nonsense)
-                       offline fallback: src/lib/intent/mock.ts, same shape
-  → topCombos / draftManifest   shell × shape × vibe + prompt   (src/lib/compose/compose.ts)
-  → Start preview      the chosen shell renders a skeleton of that shape   (src/lib/compose/skeleton.ts)
+Start (typing pause ~300 ms)
+  → /api/compose   one Decisions call per step: node:<path> (container or part) + collection:<path>, per open node
+                   repeated until the tree is complete (depth ≤ 3, ≤ 6 parts); the preview renders every step
 Enter
-  → window opens instantly with the skeleton
-  → /api/content       Gemini writes JSON for that shape; zod validates it into a Bundle   (src/lib/content/)
-  → the shell re-renders with the content; Regenerate asks again
-"tetris but …"
-  → app opens in a fallback shell; an LLM writes TETRIS.EXE in the background (src/lib/genshell/),
-    it is smoke-tested in the sandbox, cached on the server, and swapped in
+  → /api/content   Gemini writes Data: typed collections of records (≤ 4 collections, 8 fields, 15 records)
+  → /api/compose   re-compose with data, then one binding call: bind:<path>:<slot> per part slot (type-filtered options)
+Interaction (click / tick / drag / search / submit)
+  → applyOp        add | update | remove | select | filter | sort | clear — plain code, + one history line
+  → /api/compose   re-design for the new state; unchanged parts keep their identity (no flicker)
 ```
 
-**Jev decides, code builds, Gemini writes.** Jev only picks from closed sets. Shells only render shapes. Content is validated before any shell sees it.
+**Jev decides, code applies, Gemini writes the data.** Jev only picks from options code offers; when siblings would repeat each other, code takes Jev's next most likely option.
 
 ## Map
 
 | Path | What |
 |---|---|
-| `src/styles/win99.css` | The Windows 98 UI kit (tokens + components) |
-| `src/components/win99/` | Icon set, Window frame, menus, list view, charts |
-| `src/lib/intent/` | Jev question schema, client, offline classifier, picture parser |
-| `src/lib/compose/` | Data shapes, skeletons, composer (shell × shape) |
-| `src/lib/content/` | Gemini prompt, per-shape zod schemas, server call + cache, client fetch |
-| `src/lib/genshell/` | LLM-written programs: generator, sandbox runtime, install flow |
-| `src/shells/` | Excel, Minesweeper, Doom, Paint, Weather, Notepad, 3D View, Explorer, Picture + the app frame |
-| `src/os/` | Desktop, Start menu, taskbar, Welcome dialog, window store |
-| `src/system/` | About Jev OS, Task Manager, UI Kit, message box |
+| `src/lib/kit/` | Types, catalog of containers/parts/slots, operations, tree helpers |
+| `src/lib/compose/` | State → Decisions questions → tree; fallback layout; one-step server composer; client loop |
+| `src/lib/decisions/` | OpenAI Decisions API client |
+| `src/lib/content/` | Gemini data schema, prompt and call |
+| `src/kit/` | React rendering of the tree: containers and the 14 parts |
+| `src/apps/` | App window (state, operations, re-compose) and `useComposed` |
+| `src/os/` | Desktop, Start menu (live composed preview), taskbar, Welcome, window store |
+| `src/system/` | About, Task Manager (calls + compose time per app), UI Kit, message box |
 | `src/assistant/` | Tappy |
 
 ## Checks
@@ -55,5 +50,5 @@ Enter
 pnpm test                       # vitest
 pnpm exec tsc --noEmit
 pnpm lint
-./node_modules/.bin/tsx scripts/jev-smoke.mts http://localhost:3000   # 20 prompts end to end, Jev p50/p90
+./node_modules/.bin/tsx scripts/compose-smoke.mts http://localhost:3000   # 20 apps composed live, compose p50/p90
 ```

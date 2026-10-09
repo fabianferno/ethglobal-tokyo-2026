@@ -19,12 +19,12 @@ const TOPICS: Topic[] = [
 ];
 
 export const TRY: { q: string; what: string }[] = [
-  { q: "minesweeper but about cats", what: "a game board Jev has never seen" },
-  { q: "excel of the best ramen in tokyo", what: "a spreadsheet written on the spot" },
-  { q: "paint but roast my monday", what: "MS Paint, but it has opinions" },
-  { q: "weather forecast for my mood", what: "a forecast for something that isn't weather" },
-  { q: "notepad diary of a pirate", what: "a document that writes itself" },
-  { q: "tetris but about sushi", what: "a program that doesn't exist yet: watch it install" },
+  { q: "expense tracker for my tokyo trip", what: "add a meal, watch the numbers and the layout change" },
+  { q: "reading list with what i've finished", what: "tick a book off and Jev re-designs around it" },
+  { q: "kanban for moving apartments", what: "drag cards between columns" },
+  { q: "habit tracker for this month", what: "a dashboard nobody designed" },
+  { q: "ramen spots i want to try", what: "pick one to see everything about it" },
+  { q: "workout log with my personal bests", what: "log a set and see it land" },
 ];
 
 export function Welcome() {
@@ -117,7 +117,7 @@ function Page({ id, tryIt }: { id: string; tryIt: (q: string) => void }) {
       return (
         <>
           <P>
-            <b>Nothing on this desktop was built as an app.</b> Every window is composed while you type by <b>Jev</b>, a model that decides what you meant in under half a second.
+            <b>Nothing on this desktop was built as an app.</b> Every window is composed while you type by <b>Jev</b>, which picks every pane, part and binding from a kit, in about half a second.
           </P>
           <P>
             We think interfaces will be generated on demand: changing in real time, and personal to whoever is using them. No frontend to build, no app to install. <b>Jev OS is an experiment in that idea.</b>
@@ -132,7 +132,7 @@ function Page({ id, tryIt }: { id: string; tryIt: (q: string) => void }) {
       return (
         <>
           <P>
-            Open <b>Start</b> (or press <span className="mono">Ctrl+Esc</span>) and type. A familiar program (Excel, Paint, Minesweeper, Notepad, Doom…) is combined with what you asked for, and the app takes shape as you type. Pick one to try:
+            Open <b>Start</b> (or press <span className="mono">Ctrl+Esc</span>) and type. Jev lays out an app from a kit of parts (tables, lists, forms, charts, kanbans, checklists…) and it takes shape as you type. Pick one to try:
           </P>
           <div className="col" style={{ gap: 5 }}>
             {TRY.map((t) => (
@@ -145,9 +145,6 @@ function Page({ id, tryIt }: { id: string; tryIt: (q: string) => void }) {
               </button>
             ))}
           </div>
-          <P>
-            Ask for a program that doesn&apos;t exist yet (&quot;tetris but…&quot;) and Setup writes it for you in the background, while the app keeps working.
-          </P>
         </>
       );
     default:
@@ -155,17 +152,17 @@ function Page({ id, tryIt }: { id: string; tryIt: (q: string) => void }) {
         <>
           <ol style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6, fontSize: 13 }}>
             <li>
-              <b>You type.</b> On every keystroke, <b>Jev</b> answers a handful of typed questions in parallel, in one call to the OpenAI Decisions API: which program, what shape of content, what tone, which animation. It never writes text or UI. <b>Code builds the window</b> from those answers.
+              <b>You type.</b> <b>Jev</b> designs the app with the OpenAI Decisions API: first the layout, then what goes in each pane, then which data each part shows. One call per level, and you watch it happen.
             </li>
             <li>
-              <b>You press Enter.</b> The window opens instantly in the right shape, and <b>Gemini</b> writes the content into it: the rows, the board, the poem, the roast.
+              <b>You press Enter.</b> <b>Gemini</b> writes the starting data, and Jev wires every part to it.
             </li>
             <li>
-              <b>New programs</b> are written once by an LLM in the background. They run sandboxed with no network access, are tested, and are instant for everyone after that.
+              <b>You use it.</b> Every click, tick or search changes the app&apos;s state, and Jev re-designs the window for the new state. Nobody designed any of these screens.
             </li>
           </ol>
           <P>
-            <span className="muted">Jev on the OpenAI Decisions API (gpt-6-luna) · content and pictures by Gemini.</span>
+            <span className="muted">Jev on the OpenAI Decisions API (gpt-6-luna) · data and pictures by Gemini.</span>
           </P>
         </>
       );

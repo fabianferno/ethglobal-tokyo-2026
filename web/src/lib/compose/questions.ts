@@ -10,6 +10,17 @@ const ACCENT_TEXT: Record<(typeof ACCENTS)[number], string> = {
   purple: "Creative, playful, night", maroon: "Warm, food, serious", olive: "Outdoors, earthy, slow",
 };
 
+/** What each pane of a layout is typically for: a hint in the question (Jev still decides), so siblings divide the work. */
+const ROLES: Record<string, string[]> = {
+  "split-h-2": ["the items", "a way to add new items, or the selected item"],
+  "split-h-3": ["the items", "the selected item", "a way to add one"],
+  "split-v-2": ["headline numbers or a chart", "the items"],
+  "split-v-3": ["headline numbers", "a chart", "the items"],
+  "tabs-2": ["the items", "a way to add one"],
+  "tabs-3": ["the items", "a summary or chart", "a way to add one"],
+  "grid-4": ["headline numbers", "a chart", "the items", "a way to add one"],
+};
+
 /** "the right pane of a side-by-side split" — where a node sits, in words. */
 export function placeText(tree: Tree, path: string): string {
   if (path === "root") return "the whole app window";
@@ -19,7 +30,8 @@ export function placeText(tree: Tree, path: string): string {
   const t = parent.type!;
   const n = CONTAINER_INFO[t as keyof typeof CONTAINER_INFO]?.children ?? 0;
   const where = t.startsWith("split-h") ? `pane ${i + 1} of ${n}, side by side` : t.startsWith("split-v") ? `pane ${i + 1} of ${n}, stacked top to bottom` : t.startsWith("tabs") ? `tab ${i + 1} of ${n}` : `cell ${i + 1} of a 2x2 grid`;
-  return `${where}, inside ${placeText(tree, parentPath)}`;
+  const role = ROLES[t]?.[i];
+  return `${where}${role ? ` (usually: ${role})` : ""}, inside ${placeText(tree, parentPath)}`;
 }
 
 const describeType = (t: NodeType) => (isContainer(t) ? CONTAINER_INFO[t].description : PART_INFO[t].description);
@@ -46,7 +58,7 @@ export function levelQuestions(state: AppState, tree: Tree): Question[] {
   }
   if (tree.root.type === null) {
     qs.push({ type: "choice", name: "accent", instructions: "Which accent colour fits this app?", choices: ACCENTS.map((a) => ({ value: a, description: ACCENT_TEXT[a] })) });
-    qs.push({ type: "predicate", name: "nonsense", instructions: "The request is gibberish or is not a request for any kind of app" });
+    qs.push({ type: "predicate", name: "nonsense", instructions: "Judge only the App request in quotes: it is random letters, keyboard mashing, or otherwise not something a person would ask an app to do" });
   }
   return qs;
 }
@@ -57,15 +69,29 @@ function pick(answers: DecisionAnswer[], name: string, allowed: string[]): strin
 
 /** Allowed options, most likely first (Jev's own probabilities; its choice first when there are none). */
 function ranked(answers: DecisionAnswer[], name: string, allowed: string[]): string[] {
+  return scored(answers, name, allowed).map(([v]) => v);
+}
+
+function scored(answers: DecisionAnswer[], name: string, allowed: string[]): [string, number][] {
   const a = answers.find((x) => x.name === name);
   if (!a || a.type !== "choice" || !allowed.includes(a.choice)) throw new ComposeError(`no usable answer for ${name}`);
   const p = new Map<string, number>();
   a.probabilities.forEach((x, i) => (typeof x === "number" ? p.set(allowed[i], x) : p.set(x.value, x.probability)));
   p.set(a.choice, Math.max(p.get(a.choice) ?? 0, ...p.values(), 0) + 1e-9);
-  return [...allowed].sort((x, y) => (p.get(y) ?? 0) - (p.get(x) ?? 0));
+  return allowed.map((v): [string, number] => [v, p.get(v) ?? 0]).sort((x, y) => y[1] - x[1]);
 }
 
-export function applyLevel(state: AppState, tree: Tree, answers: DecisionAnswer[]): Tree {
+/** Re-composes keep a pane's previous type while Jev still rates it this close to its top pick (no flicker). */
+const STICKY = 0.6;
+function withStickiness(options: [string, number][], previous: string | null | undefined): string[] {
+  const top = options[0]?.[1] ?? 0;
+  const kept = previous ? options.find(([v]) => v === previous) : undefined;
+  const order = options.map(([v]) => v);
+  if (kept && kept[1] >= STICKY * top) return [kept[0], ...order.filter((v) => v !== kept[0])];
+  return order;
+}
+
+export function applyLevel(state: AppState, tree: Tree, answers: DecisionAnswer[], prev: Tree | null = null): Tree {
   let t = tree;
   const cols = state.data?.collections ?? [];
   // Siblings are decided in one parallel call and can't see each other: when a part would repeat a sibling's
@@ -85,7 +111,7 @@ export function applyLevel(state: AppState, tree: Tree, answers: DecisionAnswer[
     const parent = node.path.slice(0, Math.max(0, node.path.lastIndexOf(".")));
     const seen = taken.get(parent) ?? new Set<string>();
     taken.set(parent, seen);
-    const options = ranked(answers, `node:${node.path}`, nodeOptions(tree, node, state.data)) as NodeType[];
+    const options = withStickiness(scored(answers, `node:${node.path}`, nodeOptions(tree, node, state.data)), prev && findNode(prev, node.path)?.type) as NodeType[];
     let chosen: { type: NodeType; collection?: string } | null = null;
     for (const type of options) {
       if (isContainer(type)) {

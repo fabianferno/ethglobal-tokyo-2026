@@ -124,3 +124,41 @@ test("a detail part follows the selection when Jev picks a collection with nothi
   const t = applyLevel(s, t0, [choice("node:root.0", "table"), choice("collection:root.0", "expenses"), choice("node:root.1", "detail"), choice("collection:root.1", "budget")]);
   expect(t.root.children![1].collection).toBe("expenses");
 });
+
+test("each pane's question carries its layout role", () => {
+  const t = setNode(emptyTree(), "root", { type: "split-h-2" });
+  const qs = levelQuestions(st(null), t);
+  expect(qs.find((q) => q.name === "node:root.0")!.instructions).toMatch(/usually: the items/);
+  expect(qs.find((q) => q.name === "node:root.1")!.instructions).toMatch(/usually: a way to add new items, or the selected item/);
+  const g = levelQuestions(st(null), setNode(emptyTree(), "root", { type: "grid-4" }));
+  expect(g.find((q) => q.name === "node:root.3")!.instructions).toMatch(/usually: a way to add one/);
+});
+
+describe("stability across re-composes", () => {
+  const ranked = (name: string, order: [string, number][]): DecisionAnswer => ({ type: "choice", name, choice: order[0][0], probabilities: order.map(([value, probability]) => ({ value, probability })) });
+  const one = (): AppState => st({ collections: [data.collections[0]] });
+  const prev = setNode(setNode(setNode(emptyTree(), "root", { type: "split-h-2" }), "root.0", { type: "list", collection: "expenses" }), "root.1", { type: "form", collection: "expenses" });
+
+  test("a pane keeps its previous part while Jev still rates it at least 60% of the top option", () => {
+    const t0 = setNode(emptyTree(), "root", { type: "split-h-2" });
+    const t = applyLevel(one(), t0, [ranked("node:root.0", [["list", 0.7], ["table", 0.2]]), ranked("node:root.1", [["detail", 0.4], ["form", 0.3], ["table", 0.2]])], prev);
+    expect(t.root.children![1].type).toBe("form");
+  });
+
+  test("…but changes when the new state clearly calls for something else", () => {
+    const t0 = setNode(emptyTree(), "root", { type: "split-h-2" });
+    const t = applyLevel(one(), t0, [ranked("node:root.0", [["list", 0.7], ["table", 0.2]]), ranked("node:root.1", [["detail", 0.8], ["form", 0.1]])], prev);
+    expect(t.root.children![1].type).toBe("detail");
+  });
+
+  test("the root layout is sticky the same way", () => {
+    const t = applyLevel(one(), emptyTree(), [ranked("node:root", [["split-v-2", 0.5], ["split-h-2", 0.35]]), choice("accent", "teal"), { type: "predicate", name: "nonsense", probability: 0 }], prev);
+    expect(t.root.type).toBe("split-h-2");
+  });
+});
+
+test("the nonsense question is about the quoted request itself, not the layout", () => {
+  const q = levelQuestions(st(null), emptyTree()).find((x) => x.name === "nonsense")!;
+  expect(q.instructions).toMatch(/the App request in quotes/);
+  expect(q.instructions).toMatch(/random letters/);
+});

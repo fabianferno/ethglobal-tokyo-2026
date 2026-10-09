@@ -9,7 +9,7 @@ export type Decide = (input: string, questions: Question[]) => Promise<DecisionA
 /** One step = at most one Decisions call: the next tree level, or (when complete and data exists) the bindings. */
 export async function composeStep(state: AppState, tree: Tree, prev: Tree | null, decide: Decide): Promise<{ tree: Tree; done: boolean }> {
   if (!isComplete(tree)) {
-    const next = applyLevel(state, tree, await decide(describe(state, tree, prev), levelQuestions(state, tree)));
+    const next = applyLevel(state, tree, await decide(describe(state, tree, prev), levelQuestions(state, tree)), prev);
     return { tree: next, done: isComplete(next) && !state.data };
   }
   if (!state.data || tree.bound) return { tree, done: true };

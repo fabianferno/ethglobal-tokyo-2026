@@ -15,9 +15,8 @@ export function AboutJevOS() {
         <div style={{ fontSize: 20, fontWeight: 800 }}>
           Jev<span style={{ color: "#7de3c4" }}>OS</span>
         </div>
-        <p>Every window here is composed live. Jev picks the program, the shape and the tone as you type; Gemini writes what goes inside.</p>
-        <p>Nothing is saved. Close a window and the app is gone; type it again and it is made again.</p>
-        <p style={{ fontSize: 11, color: "#555" }}>Jev runs on the OpenAI Decisions API (gpt-6-luna) · content and pictures by Gemini.</p>
+        <p>Every window is designed live. Jev (OpenAI Decisions API, gpt-6-luna) chooses the layout, the parts and what each part shows, and re-designs it whenever you interact.</p>
+        <p>Gemini writes the starting data. Nothing is saved: close a window and the app is gone.</p>
       </div>
     </div>
   );
