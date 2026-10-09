@@ -1,4 +1,5 @@
 import "server-only";
+import { decisionsCost, recordSpend } from "@/lib/budget";
 import type { DecisionAnswer, Question } from "./types";
 
 const DECISIONS_URL = "https://api.openai.com/v1/decisions";
@@ -26,7 +27,8 @@ export async function decide(input: string, questions: Question[], signal?: Abor
     body: JSON.stringify({ model: DECISIONS_MODEL(), input, questions }),
     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT_MS)]) : AbortSignal.timeout(TIMEOUT_MS),
   });
-  const j = (await res.json().catch(() => ({}))) as { answers?: DecisionAnswer[]; error?: { message?: string } };
+  const j = (await res.json().catch(() => ({}))) as { answers?: DecisionAnswer[]; error?: { message?: string }; usage?: { input_tokens?: number } };
+  recordSpend(decisionsCost(j.usage?.input_tokens ?? 0));
   if (!res.ok || !j.answers) throw new Error(`decisions ${res.status}: ${j.error?.message?.slice(0, 160) ?? "no answers"}`);
   return j.answers;
 }

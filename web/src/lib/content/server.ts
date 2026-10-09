@@ -1,4 +1,5 @@
 import "server-only";
+import { geminiTextCost, recordSpend } from "@/lib/budget";
 import type { Data } from "@/lib/kit/types";
 import { ContentError, dataJsonSchema, toData } from "./data";
 import { buildDataPrompt } from "./prompt";
@@ -22,7 +23,8 @@ export const gemini: GeminiCall = async ({ system, user, schema }) => {
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  const j = (await r.json()) as { error?: { message: string }; candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  const j = (await r.json()) as { error?: { message: string }; candidates?: { content?: { parts?: { text?: string }[] } }[]; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } };
+  recordSpend(geminiTextCost(j.usageMetadata?.promptTokenCount ?? 0, j.usageMetadata?.candidatesTokenCount ?? 0));
   if (!r.ok) throw new Error(`gemini ${r.status}: ${j.error?.message?.slice(0, 160)}`);
   const text = j.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
   if (!text) throw new ContentError("gemini returned no text");

@@ -68,3 +68,8 @@ test("state sent to the server is clamped to the route's limits", async () => {
   expect(String(s.data!.collections[0].records[0].t).length).toBe(200);
   expect(s.ui.filter.c.length).toBe(200);
 });
+
+test("fetchData shows the server's sentence for a 503 (budget or busy)", async () => {
+  const f = vi.fn(async () => new Response(JSON.stringify({ error: "Jev OS reached today's spending limit. Try again tomorrow." }), { status: 503 })) as unknown as typeof fetch;
+  await expect(fetchData("x", 77, f)).rejects.toThrow("Jev OS reached today's spending limit. Try again tomorrow.");
+});

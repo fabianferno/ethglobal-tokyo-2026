@@ -24,3 +24,5 @@ cd web && pnpm install
 # web/.env.local: OPENAI_API_KEY (Jev) + GEMINI_API_KEY (data and pictures)
 pnpm dev
 ```
+
+**Costs.** One app is about 10k Decisions input tokens (~$0.001) plus one small Gemini call; a person trying it for a few minutes costs about 1–1.5 cents. The app enforces its own limits: a daily spend cap (`SPEND_LIMIT_USD_PER_DAY`, default $5), all-visitors hourly caps, and per-visitor rate limits — see `web/.env.example`. Keep provider-side budgets too.

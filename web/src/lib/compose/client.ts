@@ -72,9 +72,11 @@ export function fetchData(prompt: string, nonce: number, f: typeof fetch = fetch
     } catch {
       throw new Error("Gemini took too long. Try again.");
     }
-    const j = (await res.json().catch(() => ({}))) as { data?: Data };
+    const j = (await res.json().catch(() => ({}))) as { data?: Data; error?: string };
     if (res.ok && j.data) return j.data;
     if (res.status === 429) throw new Error("Too many apps at once. Wait a few seconds and try again.");
+    // Spending limit / all-visitors cap: the server's own plain sentence.
+    if (res.status === 503 && j.error) throw new Error(j.error);
     if (res.status === 400) throw new Error("That prompt can't be turned into an app.");
     throw new Error("Couldn't write this one.");
   })();

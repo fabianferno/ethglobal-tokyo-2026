@@ -27,3 +27,14 @@ test("a crafted tree (orphan paths / too deep) or an oversized sort field is a 4
   const sorted = { ...state, ui: { ...state.ui, sort: { x: { field: "f".repeat(31), dir: "asc" } } } };
   expect((await POST(body({ state: sorted, tree: null, prev: null }))).status).toBe(400);
 });
+
+test("past the daily spending limit, compose answers offline without calling Decisions", async () => {
+  const { recordSpend, resetBudget } = await import("@/lib/budget");
+  resetBudget();
+  recordSpend(1000);
+  decide.mockClear();
+  const r = await (await POST(body({ state, tree: null, prev: null }))).json();
+  expect(r).toMatchObject({ offline: true, done: true });
+  expect(decide).not.toHaveBeenCalled();
+  resetBudget();
+});

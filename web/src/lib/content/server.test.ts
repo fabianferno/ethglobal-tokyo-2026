@@ -35,3 +35,15 @@ describe("generateData", () => {
     expect(call).toHaveBeenCalledTimes(1);
   });
 });
+
+test("Gemini calls record their cost from usageMetadata", async () => {
+  const { resetBudget, spentToday } = await import("@/lib/budget");
+  const { gemini } = await import("./server");
+  resetBudget();
+  vi.stubEnv("GEMINI_API_KEY", "test-key-123456");
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "{}" }] } }], usageMetadata: { promptTokenCount: 1_000_000, candidatesTokenCount: 1_000_000 } }))));
+  await gemini({ system: "s", user: "u", schema: {} });
+  expect(spentToday()).toBeCloseTo(0.5);
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});

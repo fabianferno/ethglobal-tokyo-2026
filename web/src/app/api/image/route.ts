@@ -1,3 +1,4 @@
+import { BUDGET_MESSAGE, BUSY_MESSAGE, globalPerHour, imageCost, overBudget, recordSpend } from "@/lib/budget";
 import { clientKey, rateLimit, tooMany } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
@@ -34,6 +35,7 @@ async function gemini(prompt: string) {
   if (!r.ok) throw new Error(`gemini ${r.status}: ${j.error?.message?.slice(0, 120)}`);
   const img = j.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData;
   if (!img) throw new Error("gemini returned no image (possibly blocked by its safety filter)");
+  recordSpend(imageCost());
   return { bytes: Buffer.from(img.data, "base64"), type: img.mimeType, source: `gemini:${model}` };
 }
 
@@ -47,8 +49,11 @@ export async function GET(request: Request) {
 
   let job = memo.get(key);
   if (!job) {
+    // Cached pictures stay free; a new one needs budget, the per-visitor limit and the all-visitors hourly cap.
+    if (overBudget()) return Response.json({ error: BUDGET_MESSAGE }, { status: 503 });
     const rl = rateLimit(`image:${clientKey(request)}`, 12, 60_000);
     if (!rl.ok) return tooMany(rl.retryAfterMs);
+    if (!rateLimit("image:global", globalPerHour("IMAGE", 100), 3_600_000).ok) return Response.json({ error: BUSY_MESSAGE }, { status: 503 });
     job = gemini(prompt);
     if (memo.size > 200) memo.clear();
     memo.set(key, job);

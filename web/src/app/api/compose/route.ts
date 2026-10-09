@@ -4,6 +4,7 @@ import { composeStep } from "@/lib/compose/step";
 import { decide, decisionsMode } from "@/lib/decisions/client";
 import { emptyTree, validTree } from "@/lib/kit/tree";
 import { CONTAINERS, PARTS, type AppState, type Tree } from "@/lib/kit/types";
+import { globalPerHour, overBudget } from "@/lib/budget";
 import { clientKey, rateLimit } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
@@ -40,7 +41,8 @@ export async function POST(request: Request) {
   const state = parsed.data.state as AppState;
   const started = performance.now();
   const offline = () => Response.json({ tree: fallbackTree(state), done: true, offline: true, ms: Math.round(performance.now() - started) });
-  if (decisionsMode() === "offline" || !rateLimit(`compose:${clientKey(request)}`, 120, 60_000).ok) return offline();
+  // No paid call past the daily spending limit, the per-visitor limit, or the all-visitors hourly cap.
+  if (decisionsMode() === "offline" || overBudget() || !rateLimit(`compose:${clientKey(request)}`, 120, 60_000).ok || !rateLimit("compose:global", globalPerHour("COMPOSE", 3000), 3_600_000).ok) return offline();
   try {
     const r = await composeStep(state, (parsed.data.tree as Tree | null) ?? emptyTree(), parsed.data.prev as Tree | null, (input, qs) => decide(input, qs, request.signal));
     return Response.json({ ...r, offline: false, ms: Math.round(performance.now() - started) });
