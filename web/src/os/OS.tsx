@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { Assistant } from "@/assistant/Assistant";
 import { InstallTray } from "@/assistant/InstallTray";
 import { Window } from "@/components/win99/Window";
-import { AppWindow } from "@/shells/AppFrame";
+import { AppWindow } from "@/apps/AppWindow";
 import { MessageBox } from "@/system/Dialogs";
 import { AboutJevOS, TaskManager, UIKit } from "@/system/SystemApps";
 import { Desktop } from "./Desktop";

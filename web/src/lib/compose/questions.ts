@@ -75,8 +75,10 @@ export function applyLevel(state: AppState, tree: Tree, answers: DecisionAnswer[
     if (!PART_INFO[type].needsCollection || !cols.length) return undefined;
     const asked = cols.length >= 2 ? pick(answers, `collection:${node.path}`, cols.map((c) => c.name)) : cols[0].name;
     const fits = (name: string) => canBind(type, cols.find((c) => c.name === name)!);
-    const c = fits(asked) ? asked : cols.find((x) => fits(x.name))?.name;
+    let c = fits(asked) ? asked : cols.find((x) => fits(x.name))?.name;
     if (!c) throw new ComposeError(`no collection can show ${type}`);
+    // A detail view of a collection with nothing selected shows nothing: follow the selection.
+    if (type === "detail" && !state.ui.selected[c]) c = cols.find((x) => state.ui.selected[x.name])?.name ?? c;
     return c;
   };
   for (const node of openNodes(tree)) {

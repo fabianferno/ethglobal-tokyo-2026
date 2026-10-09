@@ -2,13 +2,19 @@
 
 import { useSyncExternalStore } from "react";
 import type { IconName } from "@/components/win99/Icon";
-import { type AppManifest, newId } from "@/lib/compose/compose";
+import type { Tree } from "@/lib/kit/types";
 import { playSound } from "./sounds";
 
 /**
  * The OS: system icons on the desktop and open windows. Apps exist only in their windows — nothing is
  * saved, so a reload is a fresh desktop and closing a window ends that app.
  */
+
+/** A composed app: its prompt, and the layout Jev drew in the Start preview (shown while the data loads). */
+export type AppSpec = { id: string; title: string; prompt: string; tree: Tree | null };
+
+let seq = 0;
+export const newId = (p = "app") => `${p}_${Date.now().toString(36)}_${(seq++).toString(36)}`;
 
 export type SystemKey = "mycomputer" | "taskmgr" | "kit";
 
@@ -21,7 +27,7 @@ export const SYSTEM_APPS: Record<SystemKey, { label: string; icon: IconName; w: 
 export type DesktopItem = { id: string; kind: "system"; system: SystemKey; x: number; y: number };
 
 export type WinPayload =
-  | { type: "app"; app: AppManifest }
+  | { type: "app"; app: AppSpec }
   | { type: "system"; key: SystemKey }
   | { type: "msg"; icon: IconName; text: string; detail?: string };
 
@@ -47,12 +53,14 @@ export type OSState = {
   startOpen: boolean;
   balloon: { title: string; text: string } | null;
   booted: boolean;
+  /** Per app window: Decisions calls and compose time of its latest composition. */
+  stats: Record<string, { calls: number; ms: number; offline: boolean }>;
 };
 
 const GRID_Y = 96;
 const SYSTEM_ORDER: SystemKey[] = ["mycomputer", "taskmgr", "kit"];
 
-const initial: OSState = { items: [], windows: [], z: 10, startOpen: false, balloon: null, booted: false };
+const initial: OSState = { items: [], windows: [], z: 10, startOpen: false, balloon: null, booted: false, stats: {} };
 
 let state: OSState = initial;
 const listeners = new Set<() => void>();
@@ -122,9 +130,11 @@ function singleKey(w: Win) {
   return undefined;
 }
 
-export function openApp(app: AppManifest) {
-  const big = app.shell === "excel" || app.shell === "paint" || app.shell === "explorer";
-  return openWindow({ title: app.title, icon: app.icon, payload: { type: "app", app }, w: big ? 820 : 640, h: big ? 560 : 520, single: `app:${app.id}` });
+export function openApp(app: AppSpec) {
+  return openWindow({ title: app.title, icon: "logo", payload: { type: "app", app }, w: 820, h: 560, single: `app:${app.id}` });
+}
+export function setStats(winId: string, st: { calls: number; ms: number; offline: boolean }) {
+  set((s) => ({ stats: { ...s.stats, [winId]: st } }));
 }
 export function openSystem(key: SystemKey) {
   const m = SYSTEM_APPS[key];
@@ -135,7 +145,11 @@ export function message(title: string, icon: IconName, text: string, detail?: st
 }
 
 export function closeWindow(id: string) {
-  set((s) => ({ windows: s.windows.filter((x) => x.id !== id) }));
+  set((s) => {
+    const stats = { ...s.stats };
+    delete stats[id];
+    return { windows: s.windows.filter((x) => x.id !== id), stats };
+  });
 }
 export function focus(id: string) {
   set((s) => {

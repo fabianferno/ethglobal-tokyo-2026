@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { BarChart, LineChart } from "@/components/win99/Widgets";
 import { visibleRecords } from "@/lib/kit/ops";
-import type { PartProps } from "./types";
+import { nice, type PartProps } from "./types";
 
 export function BarChartPart({ node, col, state }: PartProps) {
   const c = col!;
   const rows = visibleRecords(c, state.ui).slice(0, 12);
   const label = node.bindings?.label ?? "", value = node.bindings?.value ?? "";
-  if (!rows.length) return <div className="kit-empty">No {c.name} to chart.</div>;
+  if (!rows.length) return <div className="kit-empty">No {nice(c.name)} to chart.</div>;
   return (<><div className="kit-title">{value} by {label}</div><BarChart values={rows.map((r) => Number(r[value]) || 0)} labels={rows.map((r) => String(r[label]).slice(0, 8))} /></>);
 }
 
@@ -19,7 +19,7 @@ export function LineChartPart({ node, col, state }: PartProps) {
   let rows = visibleRecords(c, state.ui);
   if (order) rows = [...rows].sort((a, b) => String(a[order]).localeCompare(String(b[order])));
   const pts = rows.map((r) => Number(r[value]) || 0);
-  if (pts.length < 2) return <div className="kit-empty">Add more {c.name} to see a trend.</div>;
+  if (pts.length < 2) return <div className="kit-empty">Add more {nice(c.name)} to see a trend.</div>;
   return (<><div className="kit-title">{value} over {order ?? "time"}</div><LineChart points={pts} height={110} color="var(--accent)" /></>);
 }
 

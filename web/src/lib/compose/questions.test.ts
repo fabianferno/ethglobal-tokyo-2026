@@ -117,3 +117,10 @@ test("the root question nudges toward apps you can both read and change", () => 
   const root = levelQuestions(st(null), emptyTree())[0];
   expect(root.instructions).toMatch(/a way to see .* and a way to change/);
 });
+
+test("a detail part follows the selection when Jev picks a collection with nothing selected", () => {
+  const s: AppState = { ...st(data), ui: { ...emptyUi(), selected: { expenses: "a" } } };
+  const t0 = setNode(emptyTree(), "root", { type: "split-h-2" });
+  const t = applyLevel(s, t0, [choice("node:root.0", "table"), choice("collection:root.0", "expenses"), choice("node:root.1", "detail"), choice("collection:root.1", "budget")]);
+  expect(t.root.children![1].collection).toBe("expenses");
+});

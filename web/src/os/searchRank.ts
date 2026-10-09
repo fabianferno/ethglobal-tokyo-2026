@@ -1,5 +1,3 @@
-import { detectProgram } from "@/lib/genshell/detect";
-import type { IntentResult } from "@/lib/intent/types";
 import type { SystemKey } from "./store";
 
 /**
@@ -29,8 +27,7 @@ export function systemHits(q: string): { key: SystemKey; label: string }[] {
   return SYSTEM_ROUTES.filter((r) => r.re.test(t)).map(({ key, label }) => ({ key, label }));
 }
 
-/** Show "Windows cannot find 'x.exe'"? Never when the query named a program we can install or a system app. */
-export function showNotFound(opts: { q: string; result: IntentResult; hasOther: boolean; systems: number }): boolean {
-  if (opts.systems || detectProgram(opts.q)) return false;
-  return !opts.hasOther || opts.result.signals.nonsense > 0.6;
+/** Show "Windows cannot find 'x.exe'"? When Jev thinks the text isn't a request for an app, and no system app matched. */
+export function showNotFound(opts: { nonsense: number; systems: number }): boolean {
+  return !opts.systems && opts.nonsense > 0.6;
 }

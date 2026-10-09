@@ -2,18 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/win99/Icon";
-import { type AppManifest, draftManifest, MAX_PROMPT, SHELL_META, topCombos } from "@/lib/compose/compose";
-import { paramChips, parse } from "@/lib/intent/parse";
-import { topK } from "@/lib/intent/types";
-import { ShellView } from "@/shells/AppFrame";
-import { message, openApp, openSystem, SYSTEM_APPS, type SystemKey, toggleStart } from "./store";
+import { useComposed } from "@/apps/useComposed";
+import { RenderTree } from "@/kit/Render";
+import { emptyUi } from "@/lib/kit/ops";
+import { treeText } from "@/lib/kit/tree";
+import type { AppState, Tree } from "@/lib/kit/types";
+import { message, newId, openApp, openSystem, SYSTEM_APPS, type SystemKey, toggleStart } from "./store";
 import { type ActionKey, actionHits, showNotFound, systemHits } from "./searchRank";
-import { useIntent } from "./useIntent";
 import { TRY as WELCOME_TRY } from "./Welcome";
 import { openWelcome, takeStartQuery } from "./welcomeStore";
 
+const MAX_PROMPT = 400;
+
 type Entry =
-  | { kind: "create"; app: AppManifest; p: number }
+  | { kind: "create"; title: string }
   | { kind: "system"; key: SystemKey; label: string; icon: IconName }
   | { kind: "action"; key: ActionKey; label: string; icon: IconName }
   | { kind: "notfound"; text: string };
@@ -25,6 +27,8 @@ const PINNED: { key: SystemKey; label: string; icon: IconName }[] = [
   { key: "taskmgr", label: "Task Manager", icon: "task" },
   { key: "kit", label: "Windows 98 UI Kit", icon: "logo" },
 ];
+
+const titleOf = (q: string) => q.trim().replace(/^./, (x) => x.toUpperCase()).slice(0, 40);
 
 export function StartMenu() {
   // The Welcome dialog's "Try it" buttons open Start with a prompt already typed.
@@ -43,22 +47,22 @@ export function StartMenu() {
     return () => window.removeEventListener("pointerdown", close);
   }, []);
 
-  const { result, busy } = useIntent(q);
-  const params = useMemo(() => parse(q), [q]);
+  // Jev composes the preview from the prompt alone, after a short pause in typing.
+  const prompt = q.trim().slice(0, MAX_PROMPT);
+  const previewState = useMemo<AppState>(() => ({ prompt, data: null, ui: emptyUi(), history: [] }), [prompt]);
+  const c = useComposed(previewState, null, { enabled: prompt.length >= 3, delayMs: 300 });
+  const tree = prompt.length >= 3 ? c.tree : null;
 
   const entries: Entry[] = useMemo(() => {
     // Like Windows 98's Start → Help: the Welcome dialog is always one click away.
     if (!q.trim()) return [...PINNED.map((p): Entry => ({ kind: "system", ...p })), { kind: "action", key: "welcome", label: "Help & Welcome", icon: "help" }];
-    if (!result) return [];
     const systems: Entry[] = [
       ...actionHits(q).map((a): Entry => ({ kind: "action", key: a.key, label: a.label, icon: "help" })),
       ...systemHits(q).map((s): Entry => ({ kind: "system", key: s.key, label: s.label, icon: SYSTEM_APPS[s.key].icon })),
     ];
-    const create = topCombos(result, 3, q).map((combo): Entry => ({ kind: "create", app: draftManifest({ prompt: q, intent: result, params, combo }), p: combo.p }));
-    const out: Entry[] = [...systems, ...create];
-    if (showNotFound({ q, result, hasOther: out.length > 0, systems: systems.length })) out.push({ kind: "notfound", text: q });
-    return out;
-  }, [q, result, params]);
+    if (tree && showNotFound({ nonsense: tree.nonsense, systems: systems.length })) return [...systems, { kind: "notfound", text: q }];
+    return [...systems, { kind: "create", title: titleOf(q) }];
+  }, [q, tree]);
 
   const sel = entries[Math.min(hot, entries.length - 1)];
 
@@ -67,8 +71,8 @@ export function StartMenu() {
     toggleStart(false);
     if (e.kind === "system") openSystem(e.key);
     else if (e.kind === "action") openWelcome();
-    else if (e.kind === "create") openApp(e.app);
-    else message("Error", "error", `Windows cannot find '${e.text.split(/\s+/)[0].toLowerCase()}.exe'.`, "Try: minesweeper but about cats");
+    else if (e.kind === "create") openApp({ id: newId(), title: e.title, prompt, tree: tree && !c.composing ? tree : null });
+    else message("Error", "error", `Windows cannot find '${e.text.split(/\s+/)[0].toLowerCase()}.exe'.`, "Try: expense tracker for my tokyo trip");
   };
 
   return (
@@ -133,17 +137,12 @@ export function StartMenu() {
               aria-label="Search"
             />
           </div>
-          {q.trim() && paramChips(params).length > 0 && (
-            <div className="row" style={{ flexWrap: "wrap", gap: 4, marginTop: 5 }}>
-              {paramChips(params).map((c) => <span key={c} className="chip" style={{ cursor: "default" }}>{c}</span>)}
-            </div>
-          )}
         </div>
       </div>
 
       <div className="col grow" style={{ padding: 4, gap: 4, minWidth: 0 }}>
-        <Preview entry={sel} />
-        <JevHud result={result} busy={busy} q={q} />
+        <Preview entry={sel} tree={tree} state={previewState} />
+        {prompt.length >= 3 && <JevHud tree={tree} composing={c.composing} calls={c.calls} ms={c.ms} offline={c.offline} />}
       </div>
     </div>
   );
@@ -159,7 +158,7 @@ function EntryRow({ e, hot, onHover, onClick }: { e: Entry; hot: boolean; onHove
       ? [e.icon, e.label, "", ""]
       : e.kind === "notfound"
         ? (["error", `${e.text.split(/\s+/)[0]}.exe`, "Not found", ""] as const)
-        : [e.app.icon, e.app.title, `✨ ${SHELL_META[e.app.shell].label} × ${e.app.shape}`, `${Math.round(e.p * 100)}%`];
+        : ["logo", e.title, "✨ composed by Jev", ""];
   return (
     <button className={`menu-item ${hot ? "hot" : ""}`} onPointerEnter={onHover} onClick={onClick} style={{ padding: "5px 6px", alignItems: "center" }}>
       <Icon name={icon as IconName} size={28} />
@@ -172,64 +171,38 @@ function EntryRow({ e, hot, onHover, onClick }: { e: Entry; hot: boolean; onHove
   );
 }
 
-function Preview({ entry }: { entry: Entry | undefined }) {
-  if (!entry || entry.kind === "system" || entry.kind === "action" || entry.kind === "notfound") {
+function Preview({ entry, tree, state }: { entry: Entry | undefined; tree: Tree | null; state: AppState }) {
+  if (!entry || entry.kind !== "create") {
     return (
       <div className="sunken grow col" style={{ alignItems: "center", justifyContent: "center", background: "linear-gradient(#f4f6fb, #dfe6f7)", gap: 10, padding: 20, textAlign: "center" }}>
         <Icon name={entry?.kind === "notfound" ? "error" : "logo"} size={64} />
         <b style={{ fontSize: 16 }}>{entry?.kind === "notfound" ? "Windows cannot find that program." : "Type anything."}</b>
-        <span className="muted">Nothing here is installed.<br />Jev composes each app as you type.</span>
+        <span className="muted">Nothing here was designed in advance.<br />Jev composes each app from parts as you type.</span>
       </div>
     );
   }
-  const app = entry.app;
   return (
-    <div className="window active" style={{ position: "relative", flex: 1, minHeight: 0, minWidth: 0 }}>
+    <div className="window active" style={{ position: "relative", flex: 1, minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column" }}>
       <div className="titlebar">
-        <Icon name={app.icon} size={18} />
-        <span className="title">{app.title}</span>
+        <Icon name="logo" size={18} />
+        <span className="title">{entry.title}</span>
         <span className="badge info" style={{ textShadow: "none" }}>PREVIEW</span>
       </div>
-      <div className="window-body" style={{ padding: 3, zoom: 0.82, overflow: "hidden" }}>
-        <ShellView key={`${app.shell}:${app.shape}:${app.prompt}`} app={app} preview />
-      </div>
-      <div className="statusbar">
-        <div>{app.jevSource === "jev" ? `Jev · ${app.jevMs} ms` : "offline"}</div>
-        <div>{app.description.slice(0, 48)}</div>
+      <div className="window-body" style={{ padding: 3, zoom: 0.82, overflow: "hidden", display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        {tree ? <RenderTree tree={tree} state={state} dispatch={() => {}} preview /> : <div className="kit-open sunken">Jev is designing…</div>}
       </div>
     </div>
   );
 }
 
-function JevHud({ result, busy, q }: { result: ReturnType<typeof useIntent>["result"]; busy: boolean; q: string }) {
-  if (!q.trim() || !result) return null;
-  const bars = (label: string, a: { value: string; p: number }[]) => (
-    <div className="col" style={{ gap: 2, flex: 1, minWidth: 0 }}>
-      <b style={{ fontSize: 11 }}>{label}</b>
-      {a.map((x) => (
-        <div key={x.value} className="row" style={{ gap: 4, fontSize: 11 }}>
-          <span style={{ width: 84, overflow: "hidden", textOverflow: "ellipsis" }}>{x.value}</span>
-          <div className="sunken grow" style={{ height: 10, padding: 1 }}>
-            <div style={{ width: `${Math.round(x.p * 100)}%`, height: "100%", background: "var(--progress)" }} />
-          </div>
-          <span style={{ width: 30, textAlign: "right" }}>{Math.round(x.p * 100)}</span>
-        </div>
-      ))}
-    </div>
-  );
+function JevHud({ tree, composing, calls, ms, offline }: { tree: Tree | null; composing: boolean; calls: number; ms: number; offline: boolean }) {
   return (
     <div className="raised" style={{ padding: 6, flex: "none" }}>
-      <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
-        {bars("shell", topK(result.shell, 3))}
-        {bars("shape", topK(result.shape, 3))}
+      <div className="row mono" style={{ fontSize: 11, gap: 8 }}>
+        {offline ? <span className="badge warn">offline</span> : <span className="badge ok">Jev</span>}
+        <span>{composing ? "composing…" : `${calls} calls · ${ms} ms`}</span>
       </div>
-      <div className="row mono" style={{ fontSize: 11, marginTop: 4, gap: 8 }}>
-        {result.source === "jev" ? <span className="badge ok">Jev</span> : <span className="badge warn">offline</span>}
-        <span>{busy ? "…" : `${result.cached ? "cached" : `${result.latencyMs}ms`}`}</span>
-        <span>vibe:{result.vibe.value}</span>
-        <span>scene:{result.scene.value}</span>
-        {result.source !== "jev" && <span>keyword fallback</span>}
-      </div>
+      {tree && <div className="mono muted" style={{ fontSize: 11, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{treeText(tree)}</div>}
     </div>
   );
 }

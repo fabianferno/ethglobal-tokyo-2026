@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Icon } from "@/components/win99/Icon";
 import { Progress } from "@/components/win99/Widgets";
-import { SHELL_META } from "@/lib/compose/compose";
 import { closeWindow, focus, message, useOS } from "@/os/store";
 
 /* ── About Jev OS (the old My Computer) ── */
@@ -28,6 +27,7 @@ export function AboutJevOS() {
 
 export function TaskManager() {
   const windows = useOS((s) => s.windows);
+  const stats = useOS((s) => s.stats);
   const apps = windows.flatMap((w) => (w.payload.type === "app" ? [{ win: w, app: w.payload.app }] : []));
   const [sel, setSel] = useState<string | null>(null);
   const picked = apps.find((a) => a.win.id === sel) ?? null;
@@ -41,25 +41,23 @@ export function TaskManager() {
           <thead>
             <tr>
               <th>App</th>
-              <th>Program</th>
-              <th>Shape</th>
               <th>Composed by</th>
-              <th className="num">Jev time</th>
+              <th className="num">Decisions calls</th>
+              <th className="num">Compose time</th>
             </tr>
           </thead>
           <tbody>
             {apps.map(({ win, app }) => (
               <tr key={win.id} className={sel === win.id ? "sel" : ""} onClick={() => setSel(win.id)} onDoubleClick={() => focus(win.id)}>
                 <td>{app.title}</td>
-                <td>{SHELL_META[app.shell].label}</td>
-                <td>{app.shape}</td>
-                <td>{app.jevSource === "jev" ? "Jev" : "offline"}</td>
-                <td className="num">{app.jevMs} ms</td>
+                <td>{stats[win.id] ? (stats[win.id].offline ? "offline" : "Jev") : "…"}</td>
+                <td className="num">{stats[win.id]?.calls ?? "…"}</td>
+                <td className="num">{stats[win.id] ? `${stats[win.id].ms} ms` : "…"}</td>
               </tr>
             ))}
             {apps.length === 0 && (
               <tr>
-                <td colSpan={5} className="muted">
+                <td colSpan={4} className="muted">
                   No apps running. Type something in Start.
                 </td>
               </tr>

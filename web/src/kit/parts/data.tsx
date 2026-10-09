@@ -3,7 +3,7 @@
 import { fmt } from "@/components/win99/Widgets";
 import { aggregate, recordLabel, visibleRecords } from "@/lib/kit/ops";
 import type { Collection, Rec } from "@/lib/kit/types";
-import type { PartProps } from "./types";
+import { nice, type PartProps } from "./types";
 
 const cell = (col: Collection, rec: Rec, field: string) => {
   const f = col.fields.find((x) => x.name === field);
@@ -21,7 +21,7 @@ export function TablePart({ node, col, state, dispatch, preview }: PartProps) {
   const sel = state.ui.selected[c.name];
   return (
     <>
-      <div className="kit-title">{c.name}</div>
+      <div className="kit-title">{nice(c.name)}</div>
       {rows.length === 0 ? <Empty col={c} /> : (
         <div className="listview sunken grow">
           <table>
@@ -47,7 +47,7 @@ export function ListPart({ node, col, state, dispatch, preview }: PartProps) {
   const sub = node.bindings?.subtitle;
   return (
     <>
-      <div className="kit-title">{c.name}</div>
+      <div className="kit-title">{nice(c.name)}</div>
       {rows.length === 0 ? <Empty col={c} /> : rows.map((r) => (
         <button key={r.id} className={`menu-item ${sel === r.id ? "hot" : ""}`} style={{ padding: "4px 6px", flexDirection: "column", alignItems: "flex-start" }} onClick={() => !preview && dispatch({ kind: "select", collection: c.name, id: r.id })}>
           <b>{cell(c, r, node.bindings?.title ?? "")}</b>
@@ -61,7 +61,7 @@ export function ListPart({ node, col, state, dispatch, preview }: PartProps) {
 export function DetailPart({ col, state }: PartProps) {
   const c = col!;
   const rec = c.records.find((r) => r.id === state.ui.selected[c.name]);
-  if (!rec) return <div className="kit-empty">Select a {c.name.replace(/s$/, "")} to see it here.</div>;
+  if (!rec) return <div className="kit-empty">Select one of the {nice(c.name)} to see it here.</div>;
   return (
     <>
       <div className="kit-title">{recordLabel(c, rec)}</div>
@@ -74,14 +74,14 @@ export function DetailPart({ col, state }: PartProps) {
   );
 }
 
-const aggLabel = (a: string) => (a === "count" ? "count" : a.replace(":", " of "));
+const aggLabel = (a: string, col: string) => (a === "count" ? `${col}` : `${a.split(":")[0] === "sum" ? "total" : "average"} ${a.split(":")[1]}`);
 export function StatRowPart({ node, col, state }: PartProps) {
   const c = col!;
   const aggs = ["agg1", "agg2", "agg3"].map((k) => node.bindings?.[k]).filter(Boolean) as string[];
   return (
     <div className="row" style={{ alignItems: "stretch" }}>
       {aggs.map((a) => (
-        <div key={a} className="kit-stat raised"><span className="muted" style={{ fontSize: 11 }}>{aggLabel(a)}</span><b>{fmt(aggregate(c, state.ui, a), "num")}</b></div>
+        <div key={a} className="kit-stat raised"><span className="muted" style={{ fontSize: 11 }}>{aggLabel(a, c.name)}</span><b>{fmt(aggregate(c, state.ui, a), "num")}</b></div>
       ))}
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { visibleRecords } from "@/lib/kit/ops";
-import type { PartProps } from "./types";
+import { nice, type PartProps } from "./types";
 
 export function FormPart({ node, col, dispatch, preview }: PartProps) {
   const c = col!;
@@ -16,7 +16,7 @@ export function FormPart({ node, col, dispatch, preview }: PartProps) {
   };
   return (
     <form onSubmit={submit} className="col" style={{ gap: 6 }}>
-      <div className="kit-title">Add to {c.name}</div>
+      <div className="kit-title">Add to {nice(c.name)}</div>
       {fields.map((name) => {
         const f = c.fields.find((x) => x.name === name)!;
         const set = (v: string) => setVals((s) => ({ ...s, [name]: v }));
@@ -53,7 +53,7 @@ export function SearchPart({ node, col, state, dispatch, preview }: PartProps) {
   }, [q]);
   return (
     <div className="row" style={{ gap: 6 }}>
-      <input className="field grow" placeholder={`Search ${c.name} by ${field}…`} value={q} onChange={(e) => setQ(e.target.value)} disabled={preview} />
+      <input className="field grow" placeholder={`Search ${nice(c.name)} by ${nice(field)}…`} value={q} onChange={(e) => setQ(e.target.value)} disabled={preview} />
       <span className="muted" style={{ fontSize: 11 }}>{visibleRecords(c, state.ui).length} shown</span>
     </div>
   );
@@ -83,7 +83,7 @@ export function ChecklistPart({ node, col, state, dispatch, preview }: PartProps
   const rows = visibleRecords(c, state.ui);
   return (
     <>
-      <div className="kit-title">{c.name}</div>
+      <div className="kit-title">{nice(c.name)}</div>
       {rows.length === 0 ? <div className="kit-empty">Nothing here yet.</div> : rows.map((r) => (
         <label key={r.id} className="check" style={{ textDecoration: r[done] ? "line-through" : "none" }}>
           <input type="checkbox" checked={!!r[done]} disabled={preview} onChange={() => dispatch({ kind: "update", collection: c.name, id: r.id, field: done, value: !r[done] })} /> {String(r[title])}
