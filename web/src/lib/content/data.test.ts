@@ -39,3 +39,10 @@ describe("toData", () => {
     expect(d.collections[0].fields.map((f) => f.name)).toEqual(["a", "a_2"]);
   });
 });
+
+test("the schema sent to Gemini has no array item limits (Gemini rejects them with 400); zod still enforces them", async () => {
+  const { dataJsonSchema } = await import("./data");
+  const json = JSON.stringify(dataJsonSchema());
+  expect(json).not.toMatch(/"(min|max)Items"/);
+  expect(json).toMatch(/"maxLength"/);
+});

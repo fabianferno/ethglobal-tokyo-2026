@@ -31,7 +31,9 @@ export function levelQuestions(state: AppState, tree: Tree): Question[] {
     qs.push({
       type: "choice",
       name: `node:${node.path}`,
-      instructions: `What should ${placeText(tree, node.path)} be? Pick a container to split it further, or a part to show something.`,
+      instructions:
+        `What should ${placeText(tree, node.path)} be? Pick a container to split it further, or a part to show something.` +
+        (node.path === "root" ? " Most apps need a way to see their items and a way to change them, so a single part is rarely enough for the whole window." : ""),
       choices: nodeOptions(tree, node, state.data).map((t) => ({ value: t, description: describeType(t) })),
     });
     if (cols.length >= 2)
@@ -50,24 +52,55 @@ export function levelQuestions(state: AppState, tree: Tree): Question[] {
 }
 
 function pick(answers: DecisionAnswer[], name: string, allowed: string[]): string {
+  return ranked(answers, name, allowed)[0];
+}
+
+/** Allowed options, most likely first (Jev's own probabilities; its choice first when there are none). */
+function ranked(answers: DecisionAnswer[], name: string, allowed: string[]): string[] {
   const a = answers.find((x) => x.name === name);
   if (!a || a.type !== "choice" || !allowed.includes(a.choice)) throw new ComposeError(`no usable answer for ${name}`);
-  return a.choice;
+  const p = new Map<string, number>();
+  a.probabilities.forEach((x, i) => (typeof x === "number" ? p.set(allowed[i], x) : p.set(x.value, x.probability)));
+  p.set(a.choice, Math.max(p.get(a.choice) ?? 0, ...p.values(), 0) + 1e-9);
+  return [...allowed].sort((x, y) => (p.get(y) ?? 0) - (p.get(x) ?? 0));
 }
 
 export function applyLevel(state: AppState, tree: Tree, answers: DecisionAnswer[]): Tree {
   let t = tree;
   const cols = state.data?.collections ?? [];
+  // Siblings are decided in one parallel call and can't see each other: when a part would repeat a sibling's
+  // part + collection, take Jev's next most likely option instead.
+  const taken = new Map<string, Set<string>>();
+  const collectionFor = (node: TreeNode, type: PartType): string | undefined => {
+    if (!PART_INFO[type].needsCollection || !cols.length) return undefined;
+    const asked = cols.length >= 2 ? pick(answers, `collection:${node.path}`, cols.map((c) => c.name)) : cols[0].name;
+    const fits = (name: string) => canBind(type, cols.find((c) => c.name === name)!);
+    const c = fits(asked) ? asked : cols.find((x) => fits(x.name))?.name;
+    if (!c) throw new ComposeError(`no collection can show ${type}`);
+    return c;
+  };
   for (const node of openNodes(tree)) {
-    const type = pick(answers, `node:${node.path}`, nodeOptions(tree, node, state.data)) as NodeType;
-    let collection: string | undefined;
-    if (!isContainer(type) && PART_INFO[type].needsCollection && cols.length) {
-      const asked = cols.length >= 2 ? pick(answers, `collection:${node.path}`, cols.map((c) => c.name)) : cols[0].name;
-      const fits = (name: string) => canBind(type as PartType, cols.find((c) => c.name === name)!);
-      collection = fits(asked) ? asked : cols.find((c) => fits(c.name))?.name;
-      if (!collection) throw new ComposeError(`no collection can show ${type}`);
+    const parent = node.path.slice(0, Math.max(0, node.path.lastIndexOf(".")));
+    const seen = taken.get(parent) ?? new Set<string>();
+    taken.set(parent, seen);
+    const options = ranked(answers, `node:${node.path}`, nodeOptions(tree, node, state.data)) as NodeType[];
+    let chosen: { type: NodeType; collection?: string } | null = null;
+    for (const type of options) {
+      if (isContainer(type)) {
+        chosen = { type };
+        break;
+      }
+      const collection = collectionFor(node, type);
+      if (seen.has(`${type}|${collection ?? ""}`)) continue;
+      chosen = { type, collection };
+      break;
     }
-    t = setNode(t, node.path, collection ? { type, collection } : { type });
+    if (!chosen) {
+      const type = options[0];
+      chosen = isContainer(type) ? { type } : { type, collection: collectionFor(node, type as PartType) };
+    }
+    if (!isContainer(chosen.type)) seen.add(`${chosen.type}|${chosen.collection ?? ""}`);
+    t = setNode(t, node.path, chosen.collection ? chosen : { type: chosen.type });
   }
   if (tree.root.type === null) {
     t = { ...t, accent: pick(answers, "accent", [...ACCENTS]) as Tree["accent"] };
@@ -105,8 +138,10 @@ export function applyBind(state: AppState, tree: Tree, answers: DecisionAnswer[]
   for (const node of partNodes(tree)) {
     const bindings: Bindings = {};
     for (const { slot, options } of slotPlan(state, node)) {
-      const value = options.length === 1 ? options[0] : pick(answers, `bind:${node.path}:${slot.name}`, options);
-      if (value !== "none") bindings[slot.name] = value;
+      // A part's slots shouldn't repeat each other (two "sum of amount" stats, the same column twice).
+      const used = new Set(Object.values(bindings));
+      const value = options.length === 1 ? options[0] : (ranked(answers, `bind:${node.path}:${slot.name}`, options).find((o) => o === "none" || !used.has(o)) ?? "none");
+      if (value !== "none" && !(used.has(value) && slot.optional)) bindings[slot.name] = value;
     }
     t = setNode(t, node.path, { bindings });
   }

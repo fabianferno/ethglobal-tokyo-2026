@@ -17,7 +17,13 @@ export const DATA_RAW = z.object({
     .max(4),
 });
 
-export const dataJsonSchema = () => z.toJSONSchema(DATA_RAW, { target: "draft-7", unrepresentable: "any" });
+/** Gemini rejects minItems/maxItems on these nested arrays (400 INVALID_ARGUMENT), so they're dropped here; zod enforces them on the answer. */
+function dropItemLimits(o: unknown): unknown {
+  if (Array.isArray(o)) return o.map(dropItemLimits);
+  if (o && typeof o === "object") return Object.fromEntries(Object.entries(o).filter(([k]) => k !== "minItems" && k !== "maxItems").map(([k, v]) => [k, dropItemLimits(v)]));
+  return o;
+}
+export const dataJsonSchema = () => dropItemLimits(z.toJSONSchema(DATA_RAW, { target: "draft-7", unrepresentable: "any" })) as object;
 
 const snake = (x: string) => x.toLowerCase().replace(/\(.*?\)/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 24) || "field";
 function unique(names: string[]): string[] {

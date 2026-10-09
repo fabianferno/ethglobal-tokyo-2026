@@ -86,3 +86,34 @@ test("describe() shows prompt, schema, ui, recent history and the tree so far", 
   expect(text).toContain('added "ramen" to expenses');
   expect(text).toContain("Layout so far: root=split-h-2 [root.0=?, root.1=?]");
 });
+
+describe("variety from Jev's own probabilities", () => {
+  const ranked = (name: string, order: [string, number][]): DecisionAnswer => ({ type: "choice", name, choice: order[0][0], probabilities: order.map(([value, probability]) => ({ value, probability })) });
+
+  test("a sibling that repeats an earlier sibling's part + collection takes its next most likely part", () => {
+    const t0 = setNode(emptyTree(), "root", { type: "split-h-3" });
+    const one: Data = { collections: [data.collections[0]] };
+    const t = applyLevel(st(one), t0, [
+      ranked("node:root.0", [["table", 0.6], ["list", 0.3]]),
+      ranked("node:root.1", [["table", 0.5], ["bar-chart", 0.4], ["list", 0.1]]),
+      ranked("node:root.2", [["table", 0.7], ["list", 0.2], ["form", 0.1]]),
+    ]);
+    expect(t.root.children!.map((c) => c.type)).toEqual(["table", "bar-chart", "list"]);
+  });
+
+  test("repeated binding values within a part take the next most likely option", () => {
+    const one: AppState = st({ collections: [data.collections[0]] });
+    let t = setNode(emptyTree(), "root", { type: "stat-row", collection: "expenses" });
+    t = applyBind(one, t, [
+      ranked("bind:root:agg1", [["sum:amount", 0.6], ["count", 0.3], ["avg:amount", 0.1]]),
+      ranked("bind:root:agg2", [["sum:amount", 0.5], ["avg:amount", 0.3], ["count", 0.2]]),
+      ranked("bind:root:agg3", [["sum:amount", 0.5], ["none", 0.4], ["count", 0.1]]),
+    ]);
+    expect(t.root.bindings).toEqual({ agg1: "sum:amount", agg2: "avg:amount" });
+  });
+});
+
+test("the root question nudges toward apps you can both read and change", () => {
+  const root = levelQuestions(st(null), emptyTree())[0];
+  expect(root.instructions).toMatch(/a way to see .* and a way to change/);
+});
