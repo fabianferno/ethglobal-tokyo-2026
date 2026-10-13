@@ -38,11 +38,21 @@ Interaction (click / tick / drag / search / submit)
 | `src/lib/compose/` | State → Decisions questions → tree; fallback layout; one-step server composer; client loop |
 | `src/lib/decisions/` | OpenAI Decisions API client |
 | `src/lib/content/` | Gemini data schema, prompt and call |
+| `src/lib/budget.ts`, `src/lib/ratelimit.ts` | Daily spend cap, all-visitors hourly caps, per-visitor rate limits |
 | `src/kit/` | React rendering of the tree: containers and the 14 parts |
 | `src/apps/` | App window (state, operations, re-compose) and `useComposed` |
 | `src/os/` | Desktop, Start menu (live composed preview), taskbar, Welcome, window store |
 | `src/system/` | About, Task Manager (calls + compose time per app), UI Kit, message box |
 | `src/assistant/` | Tappy |
+
+## Costs and limits
+
+Every paid call records what it cost (from the usage the API returns). Once today's total (UTC) reaches
+`SPEND_LIMIT_USD_PER_DAY` (default $5), the routes stop calling paid APIs: compose falls back to the rule-based layout,
+content and pictures return "Jev OS reached today's spending limit". On top of that: all-visitors hourly caps
+(`GLOBAL_COMPOSE_PER_HOUR` 3000, `GLOBAL_CONTENT_PER_HOUR` 600, `GLOBAL_IMAGE_PER_HOUR` 100) and per-visitor limits
+(compose 120/min, content 30/min, images 12/min). The counters are in memory, so on serverless each instance counts
+separately: keep provider-side budgets (OpenAI, Google Cloud) as the hard backstop. All variables: `.env.example`.
 
 ## Checks
 
